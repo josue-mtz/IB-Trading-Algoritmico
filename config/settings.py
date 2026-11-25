@@ -31,3 +31,12 @@ LOGS_DIR.mkdir(exist_ok=True)
 # Parámetros del algoritmo
 EMA_FAST = int(os.getenv("EMA_FAST", 9))
 EMA_SLOW = int(os.getenv("EMA_SLOW", 21))
+
+# Ejecutor y control de riesgo
+RISK_TRADE_SIZE = int(os.getenv("RISK_TRADE_SIZE", 10000))
+RISK_STOP_LOSS_PIPS = float(os.getenv("RISK_STOP_LOSS_PIPS", 10))
+RISK_TAKE_PROFIT_PIPS = float(os.getenv("RISK_TAKE_PROFIT_PIPS", 20))
+RISK_MAX_POSITIONS = int(os.getenv("RISK_MAX_POSITIONS", 1))
+EXECUTOR_ALLOWED_ALGORITHMS = os.getenv(
+    "EXECUTOR_ALLOWED_ALGORITHMS", "ema_cross_v1"
+).split(",")
