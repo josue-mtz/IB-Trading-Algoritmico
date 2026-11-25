@@ -27,3 +27,7 @@ WINDOW_SECONDS = int(os.getenv("WINDOW_SECONDS", 60))
 BASE_DIR = Path(__file__).parent.parent
 LOGS_DIR = BASE_DIR / "logs"
 LOGS_DIR.mkdir(exist_ok=True)
+
+# Parámetros del algoritmo
+EMA_FAST = int(os.getenv("EMA_FAST", 9))
+EMA_SLOW = int(os.getenv("EMA_SLOW", 21))
