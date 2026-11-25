@@ -1,0 +1,8 @@
+.env
+.git
+checkpoints
+data
+logs
+tests
+__pycache__
+*.pyc
