@@ -47,6 +47,27 @@ def tcp_open(host: str, port: int, timeout: float = 0.4) -> bool:
         return False
 
 
+_TCP_CHECK_CACHE = {}
+_TCP_CHECK_TTL_SECONDS = 60
+
+
+def tcp_open_cached(host: str, port: int, ttl: float = _TCP_CHECK_TTL_SECONDS) -> bool:
+    """Igual que tcp_open pero cachea el resultado durante `ttl` segundos.
+
+    Se usa para evitar spam de sondas TCP crudas contra IB Gateway, que las
+    interpreta como intentos de login fallidos ("Client disconnected before
+    version was sent") y llena los logs con errores cosméticos.
+    """
+    import time
+    key = (host, port)
+    now = time.time()
+    cached = _TCP_CHECK_CACHE.get(key)
+    if cached and (now - cached[0]) < ttl:
+        return cached[1]
+    result = tcp_open(host, port)
+    _TCP_CHECK_CACHE[key] = (now, result)
+    return result
+
 def _num(value) -> Optional[float]:
     """Convierte un valor JSON en un número; devuelve None cuando no es numérico"""
     try:
@@ -144,10 +165,17 @@ class DashboardApp:
             overall = "stopped"
 
         kafka_host, _, kafka_port = KAFKA_BOOTSTRAP_SERVERS.split(",")[0].partition(":")
+        ib_connected = bool(exec_status.get("ib_connected"))
         health = {
-            "kafka": True if self.demo else tcp_open(kafka_host, int(kafka_port or 9092)),
-            "ib_port": True if self.demo else tcp_open(IB_HOST, IB_PORT),
-            "ib_connected": bool(exec_status.get("ib_connected")),
+            "kafka": True if self.demo else tcp_open_cached(kafka_host, int(kafka_port or 9092)),
+            # Solo sondear el puerto de IB cuando el ejecutor NO está conectado.
+            # Si el ejecutor reporta conexión, el puerto obviamente está abierto y no
+            # necesitamos abrir un socket crudo que IB Gateway loguea como handshake fallido.
+            "ib_port": (
+                True if self.demo
+                else (ib_connected or tcp_open_cached(IB_HOST, IB_PORT))
+            ),
+            "ib_connected": ib_connected,
             "accounts": exec_status.get("accounts", []),
             "executor_age_s": age(exec_status.get("updated_at")),
             "velas_age_s": age(algo_status.get("updated_at")),

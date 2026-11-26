@@ -9,7 +9,7 @@ def ema_series(values: List[float], period: int) -> List[Optional[float]]:
     calcula con una media móvil simple; los siguientes usan la fórmula EMA estándar.
     """
     if period < 1:
-        raise ValueError("period must be at least 1")
+        raise ValueError("el periodo debe ser al menos 1")
     if len(values) < period:
         return [None] * len(values)
 
@@ -35,7 +35,7 @@ def rsi_series(values: List[float], period: int = 14) -> List[Optional[float]]:
     ``period`` cambios de precio. Un intervalo sin cambios produce un RSI de 50.
     """
     if period < 1:
-        raise ValueError("period must be at least 1")
+        raise ValueError("el periodo debe ser al menos 1")
     n = len(values)
     if n < period + 1:
         return [None] * n

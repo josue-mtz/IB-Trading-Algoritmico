@@ -77,7 +77,7 @@ class BaseAlgorithm(ABC):
                 "model": self.extra_status(candles),
             })
         except Exception as e:  # Un fallo al guardar el estado no debe detener el procesamiento.
-            self.log.error("Could not write algorithm status heartbeat: %s", e)
+            self.log.error("No se pudo escribir el estado del algoritmo para el dashboard: %s", e)
 
     def _prewarm(self, n: int) -> int:
         """Carga mensajes recientes de Kafka sin emitir señales.
@@ -85,7 +85,7 @@ class BaseAlgorithm(ABC):
         Así, un proceso reiniciado puede continuar tras un calentamiento breve,
         sin esperar de nuevo todo el historial que requieren los indicadores.
         """
-        from confluent_kafka import Consumer, TopicPartition
+    from confluent_kafka import Consumer, TopicPartition
         consumer = Consumer({
             "bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS,
             "group.id": f"{self.id_algoritmo}-prewarm-{uuid.uuid4().hex[:8]}",
@@ -134,11 +134,11 @@ class BaseAlgorithm(ABC):
                 value=serialize_json(signal_msg),
             )
             self.producer.poll(0)
-            self.log.info("Signal published: %s", signal_msg)
+            self.log.info("Señal publicada: %s", signal_msg)
             self.last_signal = result["signal"]
             self.last_signal_at = signal_msg["timestamp"]
         except Exception as e:
-            self.log.error("Could not publish signal: %s", e)
+            self.log.error("No se pudo publicar la señal: %s", e)
 
     def process_candle(self, candle: dict) -> Optional[dict]:
         """Procesa una vela y publica la señal que se genere.
@@ -151,7 +151,7 @@ class BaseAlgorithm(ABC):
         try:
             result = self.generate_signal(list(self.buffer))
         except Exception as e:
-            self.log.exception("Strategy failed while generating a signal: %s", e)
+            self.log.exception("La estrategia falló al generar una señal: %s", e)
             return None
 
         if result is None:
@@ -180,10 +180,10 @@ class BaseAlgorithm(ABC):
         self.heartbeat_enabled = True
         try:
             n = self._prewarm(self.warmup_needed() + 10)
-            self.log.info("Preloaded %s candles from topic '%s'.", n, TOPIC_CANDLES)
+            self.log.info("Se precargaron %s velas del tópico '%s'.", n, TOPIC_CANDLES)
         except Exception as e:
             self.log.warning(
-                "Could not preload candle history (%s); waiting for live candles.",
+                "No se pudo precargar el historial de velas (%s); se esperará a las velas en vivo.",
                 e,
             )
 
@@ -193,13 +193,13 @@ class BaseAlgorithm(ABC):
         )
         self.producer = make_producer()
         self.log.info(
-            "Algorithm '%s' started. Consuming '%s' and publishing to '%s'.",
+            "Algoritmo '%s' iniciado. Lee velas de '%s' y publica señales en '%s'.",
             self.id_algoritmo,
             TOPIC_CANDLES,
             TOPIC_SIGNALS,
         )
         self.log.info(
-            "The strategy requires %s warm-up candles before its first signal.",
+            "La estrategia necesita %s velas de calentamiento antes de dar su primera señal.",
             self.warmup_needed(),
         )
 
@@ -209,7 +209,7 @@ class BaseAlgorithm(ABC):
                 if msg is None:
                     continue
                 if msg.error():
-                    self.log.error("Kafka error: %s", msg.error())
+                    self.log.error("Error de Kafka: %s", msg.error())
                     continue
                 candle = deserialize_json(msg.value())
                 candle_time = str(candle.get("inicio"))
@@ -221,10 +221,10 @@ class BaseAlgorithm(ABC):
                 self._last_candle_time = candle_time
                 self.process_candle(candle)
         except KeyboardInterrupt:
-            self.log.info("Stopped by user (Ctrl+C).")
+            self.log.info("Detenido por el usuario (Ctrl+C).")
         finally:
             if self.consumer is not None:
                 self.consumer.close()
             if self.producer is not None:
                 self.producer.flush(timeout=5)
-            self.log.info("Algorithm '%s' stopped.", self.id_algoritmo)
+            self.log.info("Algoritmo '%s' detenido.", self.id_algoritmo)
