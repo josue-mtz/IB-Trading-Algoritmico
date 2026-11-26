@@ -1,4 +1,4 @@
-"""Offline tests for the trade ledger, dashboard controls, and local API."""
+"""Pruebas locales del registro de operaciones, controles del panel y API local."""
 import json
 import threading
 import urllib.request
@@ -33,7 +33,7 @@ def test_buy_tp_sell_sl_and_open():
     assert a["exit_reason"] == "TP" and a["pips"] == pytest.approx(20) and a["pnl"] == pytest.approx(20 - 1.0)
     assert b["exit_reason"] == "SL" and b["pips"] == pytest.approx(-10) and b["pnl"] == pytest.approx(-10)
     m = mark_open_trade(open_[0], bid=1.1005, ask=1.1007)
-    assert m["pnl"] == pytest.approx(5.0)  # Long positions are marked to the bid.
+    assert m["pnl"] == pytest.approx(5.0)  # Las posiciones largas se valoran al precio bid.
     assert mark_open_trade({**open_[0], "side": "SELL"}, 1.1005, 1.1007)["pnl"] == pytest.approx(-7.0)
 
 
@@ -56,7 +56,7 @@ def test_stats_daily_total_drawdown_and_json_safe():
     o = st["overall"]
     assert o["pnl"] == pytest.approx(20) and o["max_drawdown"] == pytest.approx(20) and o["winrate"] == 0.5
     assert o["profit_factor"] == pytest.approx(2.0) and o["streak"] == 1
-    json.dumps(compute_stats(closed[:1], tz=timezone.utc), allow_nan=False)  # No Infinity or NaN.
+    json.dumps(compute_stats(closed[:1], tz=timezone.utc), allow_nan=False)  # No admite Infinity ni NaN.
 
 
 @pytest.fixture
@@ -74,7 +74,7 @@ def test_control_accumulates_only_active_time(runtime):
     c = state.set_trading_enabled(False)
     assert c["accumulated_active_s"] > 1e6 and c["resumed_at"] is None
     before = state.active_seconds(c)
-    assert state.active_seconds(c) == before  # The active timer pauses with trading.
+    assert state.active_seconds(c) == before  # El tiempo activo se detiene al pausar el trading.
 
 
 def test_dashboard_api_token_and_pause_flow(runtime):
@@ -99,10 +99,10 @@ def test_dashboard_api_token_and_pause_flow(runtime):
 
     try:
         assert call("/api/state")[1]["state"] == "stopped"
-        assert call("/api/start", token="mal")[0] == 403  # Invalid tokens cannot start workers.
-        assert call("/api/state", host="evil.com")[0] == 403  # Reject DNS-rebinding host headers.
+        assert call("/api/start", token="mal")[0] == 403  # Un token inválido no puede iniciar procesos.
+        assert call("/api/state", host="evil.com")[0] == 403  # Rechaza encabezados Host vulnerables a DNS rebinding.
         assert call("/api/start", token=app.token)[1]["state"]["state"] == "running"
-        assert call("/api/variant", token=app.token, body=b'{"variant":"v1"}')[0] == 409  # no cambia en marcha
+        assert call("/api/variant", token=app.token, body=b'{"variant":"v1"}')[0] == 409  # No permite cambiarla mientras está en marcha.
         assert call("/api/pause", token=app.token)[1]["state"]["state"] == "paused"
         assert call("/api/variant", token=app.token, body=b'{"variant":"v1"}')[1]["state"]["control"]["variant"] == "v1"
         assert call("/api/stop", token=app.token)[1]["state"]["state"] == "stopped"

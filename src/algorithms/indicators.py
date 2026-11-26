@@ -1,12 +1,12 @@
-"""Pure technical-indicator calculations shared by live trading and backtests."""
+"""Cálculos puros de indicadores técnicos compartidos por trading y backtests."""
 from typing import List, Optional
 
 
 def ema_series(values: List[float], period: int) -> List[Optional[float]]:
-    """Return an exponential moving average series aligned with ``values``.
+    """Devuelve una serie de medias móviles exponenciales alineada con ``values``.
 
-    The first ``period - 1`` entries are ``None``. The first calculated value
-    uses a simple moving average; later values use the standard EMA formula.
+    Las primeras ``period - 1`` entradas son ``None``. El primer valor se
+    calcula con una media móvil simple; los siguientes usan la fórmula EMA estándar.
     """
     if period < 1:
         raise ValueError("period must be at least 1")
@@ -23,16 +23,16 @@ def ema_series(values: List[float], period: int) -> List[Optional[float]]:
 
 
 def ema_last(values: List[float], period: int) -> Optional[float]:
-    """Return the last EMA value, or ``None`` when there is not enough data."""
+    """Devuelve el último valor EMA o ``None`` si no hay datos suficientes."""
     series = ema_series(values, period)
     return series[-1] if series else None
 
 
 def rsi_series(values: List[float], period: int = 14) -> List[Optional[float]]:
-    """Return the Wilder relative-strength index aligned with ``values``.
+    """Devuelve el índice de fuerza relativa de Wilder alineado con ``values``.
 
-    The first ``period`` entries are ``None`` because each RSI value requires
-    ``period`` price changes. A flat window produces an RSI of 50.
+    Las primeras ``period`` entradas son ``None`` porque cada valor RSI requiere
+    ``period`` cambios de precio. Un intervalo sin cambios produce un RSI de 50.
     """
     if period < 1:
         raise ValueError("period must be at least 1")
@@ -74,7 +74,7 @@ def detect_cross(
     current_fast: Optional[float],
     current_slow: Optional[float],
 ) -> Optional[str]:
-    """Return ``BUY`` or ``SELL`` when two moving averages cross."""
+    """Devuelve ``BUY`` o ``SELL`` cuando se cruzan dos medias móviles."""
     if None in (previous_fast, previous_slow, current_fast, current_slow):
         return None
     if previous_fast <= previous_slow and current_fast > current_slow:

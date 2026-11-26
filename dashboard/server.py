@@ -1,7 +1,6 @@
-"""Serve the local dashboard and its small JSON API using Python's standard library.
+"""El servidor sirve el panel de control local y su pequeña API JSON utilizando la biblioteca estándar de Python
 
-The server is intended for local use only. It binds to loopback, checks the
-Host header, and requires a per-session token for state-changing requests.
+El servidor está diseñado para uso local únicamente. Se enlaza a la interfaz loopback, verifica el encabezado Host y requiere un token por sesión para las solicitudes que modifican el estado
 """
 import csv
 import json
@@ -29,9 +28,9 @@ MAX_EVENTS_SENT = 60
 
 
 def _resolve_tz(name: str):
-    """Resolve an optional IANA time-zone name."""
+    """Resolver un nombre de zona horaria de IANA opcional"""
     if not name:
-        return None  # Use the system time zone.
+        return None  # Utiliza la zona horaria del sistema
     try:
         from zoneinfo import ZoneInfo
         return ZoneInfo(name)
@@ -40,7 +39,7 @@ def _resolve_tz(name: str):
 
 
 def tcp_open(host: str, port: int, timeout: float = 0.4) -> bool:
-    """Return whether a TCP service accepts a short connection attempt."""
+    """Indica si un servicio TCP acepta un intento de conexión breve"""
     try:
         with socket.create_connection((host, port), timeout=timeout):
             return True
@@ -49,7 +48,7 @@ def tcp_open(host: str, port: int, timeout: float = 0.4) -> bool:
 
 
 def _num(value) -> Optional[float]:
-    """Convert a JSON value to a number, returning None when it is not numeric."""
+    """Convierte un valor JSON en un número; devuelve None cuando no es numérico"""
     try:
         return float(value)
     except (TypeError, ValueError):
@@ -57,7 +56,7 @@ def _num(value) -> Optional[float]:
 
 
 def load_backtest_summary(reports_dir: Path = REPORTS_DIR) -> dict:
-    """Load per-variant in-sample and out-of-sample metrics from the newest report."""
+    """Carga las métricas por variante para datos de entrenamiento y prueba del informe más reciente."""
     files = sorted(Path(reports_dir).glob("variants_comparison_*/comparison.csv"))
     if not files:
         return {}
@@ -72,7 +71,7 @@ def load_backtest_summary(reports_dir: Path = REPORTS_DIR) -> dict:
 
 
 class DashboardApp:
-    """Coordinate dashboard actions and assemble data for the browser interface."""
+    """Coordina las acciones del panel y recopila los datos para la interfaz del navegador"""
 
     def __init__(self, pm=None, orders_log: Path = LOGS_DIR / "orders.jsonl",
                  manage_producer: bool = DASHBOARD_MANAGE_PRODUCER, demo: bool = False,
@@ -85,7 +84,7 @@ class DashboardApp:
         self.token = secrets.token_urlsafe(24)
         self._lock = threading.Lock()
 
-    # ---------- User actions ----------
+    # Acciones del usuario
 
     def start(self) -> dict:
         with self._lock:
@@ -114,8 +113,7 @@ class DashboardApp:
             state.set_variant(variant)
         return self.build_state()
 
-    # ---------- Dashboard state ----------
-
+    # Estado del Dashboard
     def build_state(self) -> dict:
         now = datetime.now(timezone.utc)
         control = state.load_control()
@@ -207,7 +205,7 @@ def make_handler(app: DashboardApp, port: int):
         def log_message(self, fmt, *args):  # silencioso
             pass
 
-        # -- helpers --
+        # helpers
         def _send(self, status: int, body: bytes, ctype: str) -> None:
             self.send_response(status)
             self.send_header("Content-Type", ctype)
@@ -225,7 +223,7 @@ def make_handler(app: DashboardApp, port: int):
         def _host_ok(self) -> bool:
             return self.headers.get("Host", "") in allowed_hosts
 
-        # -- rutas --
+        # rutas
         def do_GET(self):
             if not self._host_ok():
                 return self._json(HTTPStatus.FORBIDDEN, {"error": "Host is not allowed."})

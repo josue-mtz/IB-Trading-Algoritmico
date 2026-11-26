@@ -1,4 +1,4 @@
-"""Transform live Kafka price ticks into fixed-time OHLC candle messages."""
+"""Transforma ticks de precios de Kafka en mensajes OHLC por intervalo de tiempo."""
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType
@@ -20,17 +20,17 @@ TICK_SCHEMA = StructType([
 
 
 def transform(ticks_df: DataFrame) -> DataFrame:
-    """Convert price ticks into one OHLC candle per time window.
+    """Convierte los ticks de precios en una vela OHLC por intervalo.
 
-    The candle price is the midpoint between bid and ask:
+    El precio de la vela es el punto medio entre bid y ask:
 
-    * ``open``: first midpoint in the window.
-    * ``high`` and ``low``: highest and lowest midpoints.
-    * ``close``: last midpoint in the window.
+    * ``open``: primer punto medio del intervalo.
+    * ``high`` y ``low``: puntos medios máximo y mínimo.
+    * ``close``: último punto medio del intervalo.
 
-    The transformation is independent of Kafka and IB, so tests can use
-    synthetic data. Output field names ``inicio`` and ``num_ticks`` remain
-    unchanged because they are part of the existing Kafka message contract.
+    La transformación no depende de Kafka ni de IB, por lo que las pruebas
+    pueden usar datos sintéticos. Los campos ``inicio`` y ``num_ticks`` se
+    conservan porque forman parte del contrato de mensajes Kafka existente.
     """
     is_streaming = ticks_df.isStreaming
 
@@ -43,7 +43,7 @@ def transform(ticks_df: DataFrame) -> DataFrame:
     )
     parsed = parsed.withColumn("mid", (F.col("bid") + F.col("ask")) / 2)
 
-    # Watermarks are only supported for streaming DataFrames.
+    # Los marcadores de agua solo se admiten en DataFrames de streaming.
     if is_streaming:
         parsed = parsed.withWatermark("event_time", "10 seconds")
 
@@ -76,7 +76,7 @@ def transform(ticks_df: DataFrame) -> DataFrame:
 
 
 def get_spark_session() -> SparkSession:
-    """Create the local Spark session with the Kafka connector and UTC time zone."""
+    """Crea una sesión Spark local con el conector Kafka y la zona horaria UTC."""
     return (
         SparkSession.builder
         .appName("TicksToCandles")
@@ -91,7 +91,7 @@ def get_spark_session() -> SparkSession:
 
 
 def run():
-    """Run the streaming job that reads ticks and publishes closed candles."""
+    """Ejecuta el proceso que lee ticks y publica las velas cerradas."""
     from src.common.kafka_utils import create_topic_if_not_exists
     create_topic_if_not_exists(TOPIC_CANDLES)
 
@@ -122,7 +122,7 @@ def run():
         )).alias("value")
     )
 
-    # Keep the existing directory so an existing stream can resume its offsets.
+    # Conserva el directorio para que el flujo reanude sus offsets anteriores.
     checkpoint = str(BASE_DIR / "checkpoints" / "velas")
 
     query = (

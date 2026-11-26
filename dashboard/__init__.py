@@ -1,1 +1,1 @@
-"""Local web dashboard package."""
+"""Paquete de panel web local"""

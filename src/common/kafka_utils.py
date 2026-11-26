@@ -1,4 +1,4 @@
-"""Small helpers for creating Kafka topics and JSON producers/consumers."""
+"""Funciones auxiliares para crear tópicos y productores o consumidores JSON de Kafka."""
 import json
 from confluent_kafka import Producer, Consumer, KafkaError
 from confluent_kafka.admin import AdminClient, NewTopic
@@ -9,7 +9,7 @@ log = get_logger("kafka_utils")
 
 
 def create_topic_if_not_exists(topic_name: str, num_partitions: int = 1, replication_factor: int = 1):
-    """Create a Kafka topic when it is missing; leave existing topics unchanged."""
+    """Crea un tópico de Kafka si no existe; no modifica los tópicos existentes."""
     admin_client = AdminClient({"bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS})
     metadata = admin_client.list_topics(timeout=5)
     if topic_name in metadata.topics:
@@ -31,12 +31,12 @@ def create_topic_if_not_exists(topic_name: str, num_partitions: int = 1, replica
 
 
 def make_producer() -> Producer:
-    """Create and return a Kafka producer using the configured broker."""
+    """Crea y devuelve un productor de Kafka para el broker configurado."""
     return Producer({"bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS})
 
 
 def make_consumer(topic: str, group_id: str) -> Consumer:
-    """Create a Kafka consumer subscribed to one topic."""
+    """Crea un consumidor de Kafka suscrito a un tópico."""
     consumer = Consumer({
         "bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS,
         "group.id": group_id,
@@ -47,10 +47,10 @@ def make_consumer(topic: str, group_id: str) -> Consumer:
 
 
 def serialize_json(data: dict) -> bytes:
-    """Encode a dictionary as UTF-8 JSON bytes for Kafka."""
+    """Codifica un diccionario como bytes JSON UTF-8 para Kafka."""
     return json.dumps(data, default=str).encode("utf-8")
 
 
 def deserialize_json(data: bytes) -> dict:
-    """Decode a Kafka message containing a UTF-8 JSON object."""
+    """Decodifica un mensaje Kafka que contiene un objeto JSON UTF-8."""
     return json.loads(data.decode("utf-8"))

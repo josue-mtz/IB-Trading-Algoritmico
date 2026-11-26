@@ -1,4 +1,4 @@
-"""Compatibility entry point; use ``python run_candles.py`` for new commands."""
+"""Punto de entrada compatible; para nuevos comandos usa ``python run_candles.py``."""
 from run_candles import run
 
 

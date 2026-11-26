@@ -1,4 +1,4 @@
-"""Start one configured EMA crossover strategy and publish its Kafka signals."""
+"""Inicia una estrategia de cruce de EMA y publica sus señales en Kafka."""
 import argparse
 from src.algorithms.ema_cross import EMACross
 from src.algorithms.variants import VARIANTS, algo_kwargs

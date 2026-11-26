@@ -1,4 +1,4 @@
-"""Print candle messages from Kafka for a human-readable live check."""
+"""Muestra los mensajes de velas de Kafka para revisar el flujo en tiempo real."""
 import json
 import uuid
 
@@ -9,7 +9,7 @@ from src.common.kafka_utils import create_topic_if_not_exists
 
 
 def main():
-    """Subscribe with a fresh consumer group and print each candle as JSON."""
+    """Se suscribe con un grupo nuevo e imprime cada vela en formato JSON."""
     create_topic_if_not_exists(TOPIC_CANDLES)
     consumer = Consumer({
         "bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS,

@@ -1,1 +1,1 @@
-"""Shared state, worker lifecycle, and trade-ledger utilities."""
+"""Estado compartido, ciclo de vida de procesos y utilidades del registro de operaciones."""

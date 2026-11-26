@@ -1,4 +1,4 @@
-"""Pure risk checks and bracket-price calculations for the order executor."""
+"""Validaciones de riesgo y cálculo de precios de órdenes bracket."""
 import math
 from typing import List, Tuple
 
@@ -11,12 +11,12 @@ from config.settings import (
 )
 
 
-# 1 pip = 0.0001 en EURUSD y GBPUSD
+# Un pip equivale a 0.0001 en EURUSD y GBPUSD.
 PIP_SIZE = 0.0001
 
 
 class RiskManager:
-    """Reject unauthorized or unsafe signals before an order reaches IB."""
+    """Rechaza señales no autorizadas o riesgosas antes de enviarlas a IB."""
 
     def __init__(
         self,
@@ -38,18 +38,18 @@ class RiskManager:
         current_positions: List[dict],
     ) -> Tuple[bool, str]:
         """
-        Return ``(True, "ok")`` when a signal may be executed.
-        Return ``(False, reason)`` when it must be rejected.
+        Devuelve ``(True, "ok")`` si se puede ejecutar la señal.
+        Devuelve ``(False, motivo)`` si se debe rechazar.
 
-        ``current_positions`` contains dictionaries with at least ``symbol``
-        and ``position``. Positive positions are long; negative positions are
-        short.
+        ``current_positions`` contiene diccionarios con al menos ``symbol``
+        y ``position``. Los valores positivos representan posiciones largas
+        y los negativos, posiciones cortas.
         """
-        # Reject unapproved strategy IDs, including test-only strategies.
+        # Rechaza identificadores de estrategias no aprobados, incluidas las de prueba.
         if signal.get("id_algoritmo") not in self.allowed_algorithms:
             return False, f"Algorithm '{signal.get('id_algoritmo')}' is not allowed."
 
-        # Required message fields are part of the existing Kafka contract.
+        # Los campos obligatorios forman parte del contrato actual de Kafka.
         for field in ("id_algoritmo", "symbol", "signal", "precio_referencia"):
             if field not in signal:
                 return False, f"Required field is missing: {field}."
@@ -66,7 +66,7 @@ class RiskManager:
         ):
             return False, f"Invalid reference price: {reference_price}."
 
-        # Count only open positions for the symbol in this signal.
+        # Cuenta únicamente las posiciones abiertas del símbolo de esta señal.
         symbol = signal["symbol"]
         open_positions = [
             p for p in current_positions
@@ -84,10 +84,10 @@ class RiskManager:
         self, side: str, reference_price: float, pip_size: float = PIP_SIZE
     ) -> Tuple[float, float]:
         """
-        Calculate (stop loss, take profit) around the reference price.
+        Calcula el stop loss y el take profit a partir del precio de referencia.
 
-        - BUY:  SL por debajo, TP por encima
-        - SELL: SL por encima, TP por debajo
+        - BUY: SL por debajo y TP por encima.
+        - SELL: SL por encima y TP por debajo.
         """
         if side == "BUY":
             sl = reference_price - self.sl_pips * pip_size

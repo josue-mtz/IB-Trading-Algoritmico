@@ -1,4 +1,4 @@
-"""Run one strategy variant on historical data and write a complete report."""
+"""Ejecuta una variante de estrategia con datos históricos y genera un informe."""
 import argparse
 import json
 from dataclasses import fields
@@ -26,7 +26,7 @@ VARIANTS = {
 
 
 def run_backtest(variant: str = "v1", force_download: bool = False):
-    """Run the selected variant and return its IS/OOS metrics and report folder."""
+    """Ejecuta la variante elegida y devuelve métricas IS/OOS y la carpeta del informe."""
     if variant not in VARIANTS:
         raise ValueError(f"Unknown strategy variant: {variant}. Choose from {list(VARIANTS)}")
 

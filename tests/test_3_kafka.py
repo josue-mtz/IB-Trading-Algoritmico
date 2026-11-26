@@ -1,4 +1,4 @@
-"""Kafka integration test for publishing signals from synthetic candle data."""
+"""Prueba de integración Kafka que publica señales a partir de velas sintéticas."""
 import json
 import time
 import uuid

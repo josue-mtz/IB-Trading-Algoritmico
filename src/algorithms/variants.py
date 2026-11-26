@@ -1,4 +1,4 @@
-"""Named EMA strategy configurations shared by the runner and dashboard."""
+"""Configuraciones de estrategias EMA compartidas por el ejecutor y el panel."""
 
 VARIANTS = {
     "v1": {"id_algoritmo": "ema_cross_v1", "label": "Base EMA crossover"},
@@ -10,5 +10,5 @@ VARIANTS = {
 
 
 def algo_kwargs(variant: str) -> dict:
-    """Return constructor arguments for ``EMACross`` without its display label."""
+    """Devuelve los argumentos de ``EMACross`` sin incluir la etiqueta visible."""
     return {k: v for k, v in VARIANTS[variant].items() if k != "label"}

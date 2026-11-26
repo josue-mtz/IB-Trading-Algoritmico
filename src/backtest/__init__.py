@@ -1,1 +1,1 @@
-"""Historical strategy simulation, optimization, and performance metrics."""
+"""Simulación histórica, optimización de estrategias y métricas de rendimiento."""

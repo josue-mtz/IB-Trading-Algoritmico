@@ -1,7 +1,7 @@
-"""Read and write the JSON files shared by the dashboard and trading workers.
+"""Lee y escribe archivos JSON compartidos por el panel y los procesos de trading.
 
-Atomic writes allow separate processes to exchange status without a database.
-The existing file names and JSON keys are kept stable for compatibility.
+Las escrituras atómicas permiten intercambiar estados entre procesos sin una
+base de datos. Se conservan los nombres de archivo y claves JSON existentes.
 """
 import json
 import os
@@ -21,7 +21,7 @@ ORDER_MAP_FILE = RUNTIME_DIR / "open_orders_map.json"
 WORKERS_FILE = RUNTIME_DIR / "workers.json"
 
 
-# ---------- File helpers ----------
+# ---------- Funciones auxiliares para archivos ----------
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
@@ -32,7 +32,7 @@ def now_iso() -> str:
 
 
 def parse_iso(value: Optional[str]) -> Optional[datetime]:
-    """Parse an ISO timestamp; interpret a timestamp without a zone as UTC."""
+    """Interpreta una fecha ISO; si no incluye zona horaria, asume UTC."""
     if not value:
         return None
     try:
@@ -47,7 +47,7 @@ def write_json_atomic(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + f".{os.getpid()}.tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False, default=str), encoding="utf-8")
-    # On Windows, retry if another process briefly has the target file open.
+    # En Windows, reintenta si otro proceso mantiene abierto el archivo por un momento.
     for attempt in range(10):
         try:
             os.replace(tmp, path)
@@ -72,7 +72,7 @@ def append_jsonl(path: Path, entry: dict) -> None:
 
 
 def read_jsonl(path: Path) -> List[dict]:
-    """Read JSON-lines records, skipping malformed lines from partial writes."""
+    """Lee registros JSONL y omite líneas mal formadas por escrituras incompletas."""
     rows: List[dict] = []
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -90,16 +90,16 @@ def read_jsonl(path: Path) -> List[dict]:
 
 
 def install_graceful_shutdown() -> None:
-    """Convert SIGTERM to KeyboardInterrupt so workers can close IB and Kafka."""
+    """Convierte SIGTERM en KeyboardInterrupt para cerrar IB y Kafka ordenadamente."""
     def _handler(signum, frame):
         raise KeyboardInterrupt()
     try:
         signal.signal(signal.SIGTERM, _handler)
     except (ValueError, OSError):
-        pass  # no estamos en el hilo principal
+        pass          # La señal no se está procesando desde el hilo principal.
 
 
-# ---------- Dashboard trading controls ----------
+# ---------- Controles de trading del panel ----------
 
 def _default_control() -> dict:
     return {
@@ -153,7 +153,7 @@ def set_variant(variant: str) -> dict:
 
 
 def active_seconds(control: Optional[dict] = None, now: Optional[datetime] = None) -> float:
-    """Return elapsed trading time without counting paused periods."""
+    """Devuelve el tiempo transcurrido de trading sin contar los periodos en pausa."""
     control = control or load_control()
     total = float(control.get("accumulated_active_s") or 0.0)
     if control.get("trading_enabled"):

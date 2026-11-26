@@ -1,78 +1,109 @@
-# FX Algorithmic Trading
+# FX Trading Algorítmico
 
-An educational, paper-trading project for EUR/USD. It connects Interactive
-Brokers (IB), Kafka, Spark, EMA-based strategies, risk checks, an order
-executor, historical backtests, and a local dashboard.
+Proyecto educativo de trading algorítmico en cuenta **paper (simulada)** de
+Interactive Brokers (IBKR) para el par EUR/USD. Integra Kafka, Spark, estrategias
+basadas en EMA, control de riesgo, un ejecutor de órdenes, backtesting histórico
+y un dashboard local.
 
-The project is intended for learning and controlled paper-account experiments.
-It does not promise profits, and its strategies have not been established as
-profitable. Do not treat backtest or paper results as a recommendation to trade
-real money.
+El proyecto está diseñado para **aprendizaje y experimentación controlada en
+cuenta demo**, este no promete ganancias, y las estrategias implementadas **no han
+sido validadas como rentables** y los resultados de backtest y paper trading no
+deben interpretarse como recomendación para operar con dinero real.
 
-## What the application does
+---
 
-The live pipeline has four main stages:
+## Índice
 
-1. **Market-data producer** reads bid/ask updates from IB and publishes tick
-   messages to Kafka topic `ticks`.
-2. **Candle processor** uses Spark to group ticks into time windows and publishes
-   OHLC candle messages to Kafka topic `velas`.
-3. **Strategy** reads candles, calculates EMA signals (and optional filters),
-   then publishes signals to Kafka topic `signals`.
-4. **Order executor** validates each signal, applies position limits, and can
-   submit a bracket order to the configured IB account.
+1. [Qué hace la aplicación](#qué-hace-la-aplicación)
+2. [Componentes principales](#componentes-principales)
+3. [Requisitos](#requisitos)
+4. [Instalación en Windows](#instalación-en-windows)
+5. [Configuración de la cuenta paper de IBKR](#configuración-de-la-cuenta-paper-de-ibkr)
+6. [Arrancar Kafka y Spark](#arrancar-kafka-y-spark)
+7. [Ejecutar el pipeline en vivo](#ejecutar-el-pipeline-en-vivo)
+8. [Defaults de seguridad](#defaults-de-seguridad)
+9. [Tests](#tests)
+10. [Backtesting histórico](#backtesting-histórico)
+11. [Búsqueda genética de parámetros](#búsqueda-genética-de-parámetros)
+12. [Resultados obtenidos](#resultados-obtenidos)
+13. [Análisis y limitaciones](#análisis-y-limitaciones)
+14. [Referencia de configuración](#referencia-de-configuración)
+15. [Contratos de datos](#contratos-de-datos)
+16. [Troubleshooting](#troubleshooting)
+17. [Archivos generados y locales](#archivos-generados-y-locales)
 
-The dashboard displays runtime status, market data, signals, trades, and
-account information. Its demo mode uses synthetic data and does not connect to
-IB or Kafka.
+---
 
-## Main components
+## Qué hace la aplicación
 
-| Component | Purpose |
+El pipeline en vivo tiene cuatro etapas principales:
+
+1. **Productor de datos de mercado**: lee actualizaciones bid/ask desde IB y
+   publica ticks al tópico `ticks` de Kafka.
+2. **Procesador de velas**: usa Spark para agrupar ticks en ventanas de tiempo
+   y publica velas OHLC al tópico `velas` de Kafka.
+3. **Estrategia**: consume velas, calcula señales con EMA (y filtros opcionales
+   de RSI y tendencia), y publica señales al tópico `signals`.
+4. **Ejecutor de órdenes**: valida cada señal, aplica límites de posición, y
+   puede enviar una orden bracket (market + take-profit + stop-loss) a la
+   cuenta paper de IB configurada.
+
+El dashboard muestra estado en vivo, datos de mercado, señales, trades e
+información de la cuenta pero su modo `--demo` usa datos sintéticos y no se conecta
+a IB ni a Kafka.
+
+---
+
+## Componentes principales
+
+| Componente | Propósito |
 | --- | --- |
-| `run_producer.py` | Start the IB-to-Kafka tick producer. |
-| `run_candles.py` | Start Spark processing of Kafka ticks into candles. |
-| `run_algorithms.py` | Run an EMA strategy variant and publish signals. |
-| `run_executor.py` | Consume signals and apply risk checks before submitting orders. |
-| `run_dashboard.py` | Start the local dashboard; `--demo` uses synthetic data. |
-| `run_backtest.py` | Run a historical backtest and save metrics, trades, and a chart. |
-| `run_ga_backtest.py` | Compare V3 with a genetic parameter search using walk-forward training. |
-| `src/algorithms/` | Strategy, indicator, and variant implementations. |
-| `src/spark/` | Tick-to-candle transformation and streaming job. |
-| `src/executor/` | Signal validation, risk management, and IB bracket orders. |
-| `src/runtime/` | Dashboard state, worker management, and trade ledger. |
-| `tests/` | Offline unit tests and explicitly opt-in service integration tests. |
-| `data/historical/` | Local historical candle CSV files. |
-| `reports/` | Generated backtest and optimization reports. |
+| `run_producer.py` | Arranca el productor de ticks IB → Kafka. |
+| `run_candles.py` | Arranca el job de Spark que convierte ticks en velas. |
+| `run_algorithms.py` | Ejecuta una variante de estrategia EMA y publica señales. |
+| `run_executor.py` | Consume señales, aplica control de riesgo y envía órdenes. |
+| `run_dashboard.py` | Arranca el dashboard local; `--demo` usa datos sintéticos. |
+| `run_backtest.py` | Ejecuta un backtest histórico y guarda métricas, trades y gráfico. |
+| `run_ga_backtest.py` | Compara V3 contra una búsqueda genética con walk-forward. |
+| `src/algorithms/` | Implementaciones de estrategias, indicadores y variantes. |
+| `src/spark/` | Transformación tick→vela y job de streaming. |
+| `src/executor/` | Validación de señales, control de riesgo y órdenes bracket a IB. |
+| `src/runtime/` | Estado del dashboard, gestión de workers y ledger de trades. |
+| `tests/` | Tests unitarios offline y tests de integración opt-in. |
+| `data/historical/` | CSVs locales con velas históricas. |
+| `reports/` | Reportes generados de backtest y optimización. |
 
-Some Spanish module names and message fields remain as compatibility
-interfaces. In particular, Kafka topic `velas` and fields such as `inicio`,
-`num_ticks`, `id_algoritmo`, and `precio_referencia` are retained so existing
-consumers and stored data continue to work. New commands and source modules use
-English names; the former `run_velas.py`, `run_consumer_velas.py`,
-`base_algoritmo.py`, `indicadores.py`, and `ticks_to_velas.py` paths remain
-compatibility wrappers.
+**Compatibilidad**: algunos nombres de módulos y campos en español se conservan
+como interfaces por compatibilidad (tópico `velas`, campos `inicio`, `num_ticks`,
+`id_algoritmo`, `precio_referencia`), para los comandos y módulos nuevos usan nombres
+en inglés.\
+Los antiguos `run_velas.py`, `run_consumer_velas.py`,
+`base_algoritmo.py`, `indicadores.py` y `ticks_to_velas.py` siguen existiendo
+como wrappers de compatibilidad.
 
-## Requirements
+---
 
-- Windows 10 or 11.
-- Python **3.10** for this tested setup. Keep Spark's driver and Python worker
-  on the same Python minor version.
-- Java 17 or newer for a local PySpark installation.
-- Docker Desktop with Docker Compose for Kafka and the containerized Spark job.
-- IB Gateway or Trader Workstation (TWS), configured for a **paper account**,
-  only for live market data or IB integration tests.
+## Requisitos
 
-The warning about `winutils.exe` on Windows can appear with Spark. It is often
-non-fatal for local transformations. The Python worker version mismatch is not
-safe to ignore: use the same Python version for the driver and worker.
+- **Windows 10 u 11**.
+- **Python 3.10** (versión validada; el driver y worker de Spark deben usar
+  exactamente la misma versión menor).
+- **Java 17 o superior** para PySpark local.
+- **Docker Desktop con Docker Compose** para Kafka y el job Spark contenedorizado.
+- **IB Gateway o Trader Workstation (TWS)**, configurados para **cuenta paper**,
+  solo si vas a usar datos en vivo o los tests de integración con IB.
 
-## Windows installation
+Los warnings sobre `winutils.exe` en Windows son usuales con Spark y suelen
+ser no fatales para transformaciones locales, en los errores de
+`PYTHON_VERSION_MISMATCH` **sí son graves**: driver y worker deben coincidir.
 
-Open PowerShell in the project directory.
+---
 
-If the required tools are not installed, Windows Package Manager can install
-Python 3.10, Java 17, and Docker Desktop:
+## Instalación en Windows
+
+Abre PowerShell en la raíz del proyecto.
+
+### Instalación de herramientas base (si faltan)
 
 ```powershell
 winget install --exact --id Python.Python.3.10
@@ -80,12 +111,9 @@ winget install --exact --id EclipseAdoptium.Temurin.17.JDK
 winget install --exact --id Docker.DockerDesktop
 ```
 
-Restart PowerShell after installation and start Docker Desktop. If you use
-Conda, you can skip the standalone Python installation. Install IB Gateway or
-TWS from Interactive Brokers separately and enable its paper-account API;
-broker software and account setup are not installed by this project.
+Reinicia PowerShell y abre Docker Desktop.
 
-### Option A: Conda
+### Opción A: Conda
 
 ```powershell
 conda create -n IB python=3.10 -y
@@ -95,9 +123,7 @@ python -m pip install -r requirements.txt
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
-### Option B: Python virtual environment
-
-Install Python 3.10 first, then run:
+### Opción B: Virtualenv
 
 ```powershell
 py -3.10 -m venv .venv
@@ -107,29 +133,99 @@ python -m pip install -r requirements.txt
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
-If PowerShell blocks activation, either enable script execution for the current
-user according to your organization's policy, or skip activation and run
-`.venv\Scripts\python.exe -m pip install -r requirements.txt` and
-`.venv\Scripts\python.exe <script.py>` explicitly.
+Si PowerShell bloquea la activación, ejecuta explícitamente
+`.venv\Scripts\python.exe <script.py>`.
 
-Edit `.env` only with your own local settings. Do not commit it or share its
-contents. `.env.example` contains placeholders and safe local defaults; it has
-no account credentials.
+Edita `.env` solo con tus valores locales. **Nunca lo subas a Git ni compartas
+su contenido**. `.env.example` contiene placeholders seguros y no tiene
+credenciales.
 
-### Check the Python environment
+### Verificar el entorno Python
 
 ```powershell
 python --version
 python -c "import sys, pyspark; print(sys.executable); print(pyspark.__version__)"
 ```
 
-Use the activated environment's `python -m ...` form rather than an unrelated
-`pyspark` executable on `PATH`. `run_candles.py` sets PySpark's Python
-interpreter to the same executable that starts the driver.
+Usa siempre `python -m ...` del entorno activado, no un `pyspark` ajeno en el
+`PATH`.
 
-## Start Kafka and Spark
+---
 
-Start Docker Desktop, then from the repository root:
+## Configuración de la cuenta paper de IBKR
+
+Este paso es **independiente del proyecto** y debe hacerse una sola vez.
+
+### 1. Crear la cuenta paper
+
+1. Regístrate en IBKR y accede al [Client Portal](https://www.interactivebrokers.com/portal).
+2. En la página principal, busca **"Try Our Platforms with a Simulated Account"**
+   y pulsa **"Create Paper Account"**.
+3. Alternativamente: menú lateral → **Settings** → **Paper Trading Account**.
+4. Define un usuario y contraseña **exclusivos** para la cuenta simulada.
+5. IBKR notifica por correo cuando la cuenta está lista (usualmente < 24 h).
+   El número de cuenta demo empieza con `DU`.
+
+### 2. Instalar IB Gateway (o TWS)
+
+- **IB Gateway** (recomendado para automatización): ligero, sin interfaz de
+  trading completa.
+  Descarga: https://www.interactivebrokers.com/en/index.php?f=16457
+  Puerto **paper**: **`4002`**.
+- **TWS** (alternativa): plataforma completa.
+  Descarga: https://www.interactivebrokers.com/en/index.php?f=14099
+  Puerto **paper**: **`7497`**.
+
+### 3. Habilitar la API
+
+1. Abre IB Gateway o TWS e inicia sesión **con las credenciales de la cuenta
+   paper** (no las de la cuenta real).
+2. Ve a `File → Global Configuration → API → Settings`.
+3. Marca:
+   - ✅ **Enable ActiveX and Socket Clients**.
+   - ⬜ **Read-Only API** (desmarcado; si lo dejas marcado, no podrás enviar
+     órdenes).
+   - ✅ **Allow connections from localhost only**.
+4. Verifica el **Socket Port**:
+   - IB Gateway (paper) → `4002`.
+   - TWS (paper) → `7497`.
+5. Pulsa **OK** y **reinicia** IB Gateway/TWS.
+
+### 4. Verificar la conexión desde Python
+
+```powershell
+python -c "from ib_insync import IB; ib = IB(); ib.connect('127.0.0.1', 4002, clientId=99); print('Cuentas:', ib.managedAccounts()); ib.disconnect()"
+```
+
+Debe imprimir algo como `Cuentas: ['DUxxxxxxxx']` pero si falla, revisa el paso 3.
+
+### 5. Configurar `.env` con tu cuenta
+
+```ini
+IB_HOST=127.0.0.1
+IB_PORT=4002
+IB_CLIENT_ID_PRODUCER=1
+IB_CLIENT_ID_EXECUTOR=2
+IB_ACCOUNT=DUxxxxxxxx
+```
+
+### 6. Consideraciones importantes
+
+- **clientId único por proceso**: productor usa `1`, ejecutor usa `2`, si
+  reinicias espera ~30-60 s antes de reconectar (IB bloquea el clientId por un
+  rato tras desconexión abrupta).
+- **Permisos de Forex**: en TWS, verifica `File → Account → Trading Permissions`.
+  Las cuentas paper pueden requerir habilitación manual de Forex.
+- **Horario del mercado**: Forex abre domingo 22:00 UTC y cierra viernes
+  22:00 UTC. Fuera de ese horario no llegarán ticks.
+- **Tamaño mínimo de orden**: IBKR puede rechazar órdenes < 20,000 unidades
+  en paper en algunos instrumentos. Si ocurre, sube `RISK_TRADE_SIZE` en `.env`.
+
+---
+
+## Arrancar Kafka y Spark
+
+Con Docker Desktop abierto, desde la raíz del proyecto:
 
 ```powershell
 docker compose up -d kafka
@@ -138,111 +234,121 @@ docker compose up --build -d spark-velas
 docker compose logs -f spark-velas
 ```
 
-The Compose service keeps its historic `spark-velas` key so existing
-installations update in place; its application code and entry point are in
-English. It connects to Kafka over the Kafka container's network. Wait until
-its log says `Streaming started`. Stop the services with
-`Ctrl+C` in the logs view, then:
+Espera hasta que el log muestre `Streaming started`. Detén el job con `Ctrl+C`
+en el visor de logs y luego:
 
 ```powershell
 docker compose down
 ```
 
-To run Spark natively instead of in Docker, make sure Java is available and use
-the same activated Python 3.10 environment:
+### Alternativa: Spark nativo (sin Docker)
+
+Con Java 17 disponible y el entorno Python 3.10 activado:
 
 ```powershell
 python run_candles.py
 ```
 
-Do not run both Spark candle processors at the same time against the same
-checkpoint. The checkpoint directory is `checkpoints/velas`; it preserves
-stream offsets across restarts.
+**No ejecutes ambos procesadores de velas simultáneamente** contra el mismo
+checkpoint (`checkpoints/velas`), por que El checkpoint conserva offsets de stream
+entre reinicios.
 
-## Run the live paper pipeline
+---
 
-Before starting, configure IB Gateway/TWS for paper trading and confirm that
-the API is enabled and reachable on the configured host and port. The default
-paper port is `4002`. Keep each process in a separate PowerShell terminal,
-with the same Python environment activated.
+## Ejecutar el pipeline en vivo
 
-Start the services in this order:
+Antes de arrancar, **confirma** que IB Gateway/TWS está conectado a **paper**
+y que la API es alcanzable ya que cada proceso va en **una terminal independiente**,
+con el entorno Python activado.
 
-**Terminal 1 — market data**
+### Terminal 1 — Datos de mercado (IB → Kafka)
 
 ```powershell
 python run_producer.py
 ```
 
-**Terminal 2 — ticks to candles**
+### Terminal 2 — Ticks a velas (Spark)
 
-Use either the Docker Spark service above or, instead, run:
+Usa el servicio Docker (recomendado):
+
+```powershell
+docker compose up -d spark-velas
+```
+
+O bien, si prefieres Spark nativo:
 
 ```powershell
 python run_candles.py
 ```
 
-**Terminal 3 — strategy**
+### Terminal 3 — Estrategia
 
 ```powershell
 python run_algorithms.py --variant v3
 ```
 
-Available variants are `v1`, `v2`, `v3`, and `v4`. Their filter settings are
-defined in `src/algorithms/variants.py`.
+Variantes disponibles: `v1`, `v2`, `v3`, `v4`. Sus filtros están definidos en
+`src/algorithms/variants.py`.
 
-**Terminal 4 — order executor**
+### Terminal 4 — Ejecutor de órdenes
 
 ```powershell
 python run_executor.py
 ```
 
-**Terminal 5 — inspect signals**
+### Terminal 5 — Inspeccionar señales
 
 ```powershell
 docker exec -it kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic signals --from-beginning
 ```
 
-To inspect candles instead, replace `signals` with `velas`. A candle is only
-published after its Spark window closes. FX market hours, quiet periods, and
-window timing affect when data appears. A strategy may correctly emit no
-signal for a long time; do not generate trades just to make the console active.
+Para inspeccionar velas, cambia `signals` por `velas`. Una vela solo se publica
+**después de que su ventana de Spark se cierra** (agrega ~30 s de watermark).
 
-Stop each foreground process with `Ctrl+C`. Stopping the strategy or executor
-does not automatically close orders already held by IB. Verify any open paper
-orders in TWS/IB Gateway.
+**Detener cada proceso**: `Ctrl+C` en su terminal. Detener la estrategia o el
+ejecutor **no cierra órdenes abiertas en IB**: verifícalas en TWS/IB Gateway.
 
-### Safety defaults
+---
 
-The executor uses an allowlist (`EXECUTOR_ALLOWED_ALGORITHMS`), a maximum
-position count, a fixed order size, and stop-loss/take-profit prices. It also
-refuses known live-account ports and requires a paper account. Review
-`config/settings.py` and your local `.env` before starting it. These safeguards
-do not replace supervision, and they do not make real-money trading safe.
+## Defaults de seguridad
 
-The dashboard can start and stop workers when run in live mode:
+El ejecutor aplica:
+
+- **Allowlist** de algoritmos (`EXECUTOR_ALLOWED_ALGORITHMS`): solo acepta
+  señales cuyos IDs estén en la lista (default: `ema_cross_v1`).
+- **Límite de posiciones** por símbolo (`RISK_MAX_POSITIONS`, default `1`).
+- **Tamaño fijo** de orden (`RISK_TRADE_SIZE`, default `10,000` unidades).
+- **Stop-loss / take-profit** fijos (`RISK_STOP_LOSS_PIPS=10`,
+  `RISK_TAKE_PROFIT_PIPS=20`).
+- **Rechazo de puertos live conocidos** y **requerimiento de cuenta paper**.
+
+**Estos controles no sustituyen supervisión humana.** Revisa
+`config/settings.py` y tu `.env` antes de arrancar.
+
+### Dashboard en modo live
 
 ```powershell
 python run_dashboard.py
 ```
 
-It listens on localhost by default. Keep it local because its controls can
-manage the order executor. Closing the dashboard window does not stop running
-workers; use its **Stop workers** control or stop the worker terminals.
+Escucha en localhost por defecto (`127.0.0.1:8050`). **No lo expongas a la red
+pública**: sus controles pueden iniciar/detener el ejecutor, al cerrar la ventana
+del navegador **no detiene los workers**; usa el botón **Stop workers** o
+detén las terminales.
 
-For a dashboard preview without IB or Kafka:
+### Dashboard en modo demo (sin IB/Kafka)
 
 ```powershell
 python run_dashboard.py --demo
 ```
 
+---
+
 ## Tests
 
-Run tests from the project root with the intended Python environment.
+Desde la raíz del proyecto con el entorno correcto activado.
 
-### Offline tests
-
-These do not require IB or Kafka:
+### Tests offline (no requieren IB ni Kafka)
 
 ```powershell
 python -m tests.test_3
@@ -252,168 +358,380 @@ python -m tests.test_6
 python -m tests.test_genetic_optimizer
 ```
 
-`tests.test_2` exercises Spark locally. It does not need Kafka, but it does need
-a working Java installation:
+`tests.test_2` ejercita Spark localmente, no requiere Kafka, pero sí Java:
 
 ```powershell
 python -m tests.test_2
 ```
 
-### Integration checks
-
-These need their external service running:
+### Tests de integración (requieren servicios externos)
 
 ```powershell
 python -m tests.test_1
 python -m tests.test_3_kafka
 ```
 
-The IB paper-account test can submit a **real paper order** (a parent market
-order with take-profit and stop-loss children). Run it only when you intend to
-test order submission, IB Gateway/TWS is connected to paper, and you are
-watching the account:
+### Test de envío de órdenes a IB paper
+
+⚠️ **Envía una orden real a la cuenta paper**. Ejecútalo solo si estás
+supervisando la cuenta y TWS/IB Gateway está conectado a paper:
 
 ```powershell
 python -m tests.test_4_ib
 ```
 
-The script checks its configured paper port and account before sending. It is
-not an offline unit test. Avoid running broad test discovery unless you have
-reviewed the integration tests and their external side effects.
+El script verifica que el puerto y la cuenta sean paper antes de enviar, pero **no
+es un test offline**, solo evita ejecuciones automáticas de todo `tests/` sin revisar
+los side-effects.
 
-## Historical backtests and reports
+---
 
-Run the selected EMA strategy on historical one-minute bars:
+## Backtesting histórico
+
+Ejecuta una variante sobre datos históricos M1:
 
 ```powershell
 python run_backtest.py --variant v3
 ```
 
-If `data/historical/EURUSD_M1.csv` is missing, the downloader requests historical
-data from IB and saves the result locally. This requires a working IB connection
-and data permissions. To request a fresh download when a local CSV exists:
+Si `data/historical/EURUSD_M1.csv` no existe, el downloader solicita datos a IB
+y los guarda localmente, este requiere conexión IB activa y permisos de datos para
+forzar una descarga nueva:
 
 ```powershell
 python run_backtest.py --variant v3 --force-download
 ```
 
-Reports are written under a new `reports/backtest_*` directory and include
-`metrics.json`, `trades_is.csv`, `trades_oos.csv`, and `equity_curve.png`.
-The backtest splits the dataset into in-sample (IS) and out-of-sample (OOS)
-periods; a historical split is not a guarantee of future performance.
+Los reportes se escriben en `reports/backtest_<ts>_<variant>/` e incluyen:
 
-### Genetic parameter search
+- `metrics.json`: métricas completas (IS y OOS).
+- `trades_is.csv` / `trades_oos.csv`: cada trade con entrada, salida, SL, TP,
+  pnl_pips, pnl_usd, exit_reason.
+- `equity_curve.png`: gráfico IS vs OOS.
 
-Compare V3 against a genetic search over EMA, RSI threshold, stop-loss, and
-take-profit parameters:
+### Reglas metodológicas del backtest
+
+- Split temporal **70% in-sample (IS) / 30% out-of-sample (OOS)**.
+- **Sin look-ahead**: la señal se genera al cierre de la vela `i`; la entrada
+  se ejecuta en la **apertura** de la vela `i+1`.
+- **Spread de 2 pips** y **slippage de 0.5 pips** aplicados **en contra** en
+  cada entrada y salida.
+- Si SL y TP se tocan en la misma vela, **se asume SL** (conservador).
+- Capital inicial: **$10,000 USD** por corrida.
+- Tamaño: **10,000 unidades** de EUR (micro-lote).
+
+### Comparativa de las 4 variantes en una sola pasada
+
+```powershell
+python run_variants.py
+```
+
+Carga el dataset una vez y corre V1–V4 sobre el mismo IS/OOS. Genera
+`reports/variants_comparison_<ts>/comparison.{csv,json}`.
+
+---
+
+## Búsqueda genética de parámetros
+
+Compara V3 contra una búsqueda genética sobre parámetros de EMA, RSI, SL y TP:
 
 ```powershell
 python run_ga_backtest.py --population-size 20 --generations 8 --seed 42
 ```
 
-This requires a local historical dataset with at least 20,000 candles. The
-optimizer selects candidates using walk-forward in-sample folds, then evaluates
-the selected candidate on the held-out period. The current held-out data has
-been inspected in earlier experiments, so its results are exploratory rather
-than independent confirmation. The generated `genetic_comparison_*` directory
-contains `metrics.json`, `comparison.csv`, OOS trade files, and an equity
-chart. Do not choose a live strategy based solely on this optimization.
+Requiere dataset local ≥ 20,000 velas M1, con el optimizador:
 
-In the recorded experiment on 30,146 historical candles, V3 returned
-approximately **-$5.50 across 40 OOS trades**, while the genetic candidate
-returned approximately **-$113 across 32 OOS trades**. The candidate was not
-selected. Because this holdout had been inspected in earlier comparisons, these
-numbers are exploratory and are not an independent performance estimate.
+- Selecciona candidatos con **walk-forward** sobre pliegues in-sample.
+- Evalúa el candidato seleccionado en el periodo **held-out**.
+- Calcula **Deflated Sharpe Ratio (DSR)** para penalizar el número de pruebas.
+- Genera `reports/genetic_comparison_<ts>/` con `metrics.json`,
+  `comparison.csv`, trades OOS y gráfico de equity.
 
-## Configuration reference
+**Limitación metodológica importante**: el held-out actual ya fue inspeccionado
+en experimentos anteriores para los resultados son **exploratorios** y **no
+constituyen confirmación independiente**.\
+No selecciones una estrategia para
+live basándote solo en esta optimización.
 
-Settings are read from `.env` when present; defaults are defined in
-`config/settings.py`.
+---
 
-| Setting | Default | Description |
+## Resultados obtenidos
+
+Todos los resultados a continuación provienen de:
+- Dataset: **EURUSD M1**, ~**30,146 velas** descargadas vía IB.
+- Split: **~21,102 velas IS** / **~9,044 velas OOS**.
+- Costos aplicados: **spread 2 pips + slippage 0.5 pips**.
+- Capital inicial: **$10,000 USD**.
+
+### Comparativa de variantes (split 70/30)
+
+| Variante | Algoritmo | IS Trades | IS PF | IS WR | IS Sharpe | IS MaxDD | IS PnL | OOS Trades | OOS PF | OOS WR | OOS Sharpe | OOS MaxDD | OOS PnL |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| **V1** | `ema_cross_v1` | 101 | 0.7322 | 26.7% | -6.3631 | 3.1% | -$197.50 | 44 | 0.7297 | 27.3% | -5.2624 | 1.2% | -$86.50 |
+| **V2** | `ema_cross_rsi` | 100 | 0.7423 | 27.0% | -4.9103 | 3.4% | -$187.50 | 44 | 0.7297 | 27.3% | -5.2624 | 1.2% | -$86.50 |
+| **V3** | `ema_cross_trend` | 98 | 0.8239 | 29.6% | -4.3174 | 1.7% | -$121.50 | **39** | **1.1405** | **35.9%** | **+2.3291** | **0.7%** | **+$34.50** |
+| **V4** | `ema_cross_rsi_trend` | 96 | 0.8066 | 29.2% | -4.5409 | 1.8% | -$131.50 | 39 | 1.1405 | 35.9% | +2.3291 | 0.7% | +$34.50 |
+
+**Observaciones**:
+
+- **V1 y V2** pierden consistentemente en IS y OOS, el filtro RSI (V2) reduce
+  pérdida IS pero no cambia nada en OOS.
+- **V3 (filtro de tendencia EMA 50)** es la única variante con OOS positivo:
+  **PF 1.14, WR 35.9%, Sharpe +2.33, PnL +$34.50** sobre 39 trades.
+- **V4 (RSI + tendencia)** es idéntica a V3 en OOS (el filtro RSI no agrega
+  información en presencia del filtro de tendencia).
+
+### Búsqueda genética (walk-forward + held-out)
+
+| Estrategia | Segmento | Trades | WR | PF | Expectancy | Sharpe | MaxDD | PnL | DSR |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| **V3_baseline** | IS_walk_forward | 49 | 34.69% | 0.9578 | -$0.28 | -0.8111 | 0.85% | -$13.50 | 0.443 |
+| **V3_baseline** | OOS | 40 | 32.50% | 0.9793 | -$0.14 | -0.3467 | 0.65% | -$5.50 | 0.477 |
+| **GA_optimized** | IS_walk_forward | 43 | 79.07% | **1.5247** | +$2.72 | **+8.298** | 0.30% | +$117.00 | **0.0** |
+| **GA_optimized** | OOS | 32 | 65.62% | 0.6502 | -$3.53 | **-7.8433** | 1.52% | **-$113.00** | **0.0** |
+
+**El GA encontró parámetros `fast=5, slow=14, sl_pips=30, tp_pips=10` que
+dan Sharpe +8.30 en entrenamiento y -7.84 en validación, con DSR=0.0.**
+Esto es **el ejemplo de libro de overfitting**: el optimizador memoriza el
+pasado y fracasa en el futuro.
+
+**Nota metodológica**: los números de `V3_baseline` en esta tabla difieren de
+la sección anterior porque `run_ga_backtest.py` usa **walk-forward con
+múltiples pliegues**, mientras que `run_variants.py` usa **un único split
+70/30**. Ambos son honestos; miden cosas distintas.
+
+### Veredicto del proyecto
+
+- **No hay evidencia estadísticamente significativa de edge** en ninguna
+  variante con los datos actuales.
+- **V3 es la única con OOS positivo**, pero el tamaño muestral (39 trades, ~9
+  días) es **insuficiente** para confirmar edge real.
+- **El GA fue rechazado correctamente** gracias al DSR (0.0). Esto demuestra
+  rigor metodológico: el sistema sabe **no adoptar** una estrategia
+  sobreajustada.
+
+---
+
+## Análisis y limitaciones
+
+### Por qué el Sharpe OOS de V3 (+2.33) no es concluyente
+
+El error estándar aproximado de un Sharpe anualizado con N años de datos es:
+
+```
+SE(Sharpe) ≈ √((1 + Sharpe²/2) / N_años)
+```
+
+Para V3 OOS: N = 9 días ≈ 0.036 años, Sharpe = 2.33:
+
+```
+SE ≈ √((1 + 2.33²/2) / 0.036) ≈ 10.15
+IC 95% = 2.33 ± 2 × 10.15 = [-17.97, +22.63]
+```
+
+El intervalo de confianza al 95% incluye valores **negativos y positivos
+extremos**. En términos prácticos: *con 9 días de datos, no sabemos si V3 gana
+o pierde.* Para reducir el SE a ~0.5 (mínimo razonable para inferencia), se
+necesitarían **~4 años de velas M1**.
+
+### Por qué el GA falló como se predijo
+
+- Optimizó sobre 30 días de datos con ~20-40 trades efectivos por pliegue.
+- Encontró parámetros con SL=30 pips y TP=10 pips: ratio riesgo/beneficio 1:0.33,
+  matemáticamente suicida, pero con WR=79% en backtest.
+- El DSR = 0.0 fue la **señal de rechazo automática** (penalización por haber
+  probado muchos candidatos).
+
+### Qué se necesitaría para continuar honestamente
+
+1. **Más historia**: mínimo 1-2 años de M1 (Dukascopy o HistData gratuito) para
+   tener suficiente potencia estadística.
+2. **Test cruzado en GBPUSD**: si V3 gana también en GBPUSD OOS con Sharpe
+   positivo y PF > 1.1, gana credibilidad. Si pierde, confirma regime luck.
+3. **Análisis por régimen**: separar resultados por tendencia vs rango para
+   entender **cuándo** funciona V3 y cuándo no.
+4. **Costos más realistas**: añadir comisión IB, swap overnight, y modelar
+   gap de fin de semana.
+
+Todo lo anterior está **fuera del alcance de este proyecto** y se propone como
+trabajo futuro.
+
+---
+
+## Referencia de configuración
+
+Settings leídos desde `.env` (con defaults en `config/settings.py`).
+
+| Setting | Default | Descripción |
 | --- | --- | --- |
-| `IB_HOST` | `127.0.0.1` | IB Gateway/TWS API host. |
-| `IB_PORT` | `4002` | Paper API port. |
-| `IB_CLIENT_ID_PRODUCER` | `1` | Client ID used by market-data producer. |
-| `IB_CLIENT_ID_EXECUTOR` | `2` | Client ID used by order executor. |
-| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | Kafka broker address. |
-| `TOPIC_TICKS` | `ticks` | Raw market-data topic. |
-| `TOPIC_CANDLES` | `velas` | Candle topic; the legacy `TOPIC_VELAS` name remains supported. |
-| `TOPIC_SIGNALS` | `signals` | Strategy signal topic. |
-| `SYMBOL` | `EURUSD` | Forex instrument. |
-| `WINDOW_SECONDS` | `60` | Spark candle-window length. |
-| `EMA_FAST`, `EMA_SLOW` | `9`, `21` | Default EMA periods. |
-| `USE_RSI_FILTER` | `false` | Enable the RSI strategy filter. |
-| `USE_TREND_FILTER` | `false` | Enable the long-term EMA trend filter. |
-| `RISK_TRADE_SIZE` | `10000` | Order quantity in base currency units. |
-| `RISK_STOP_LOSS_PIPS`, `RISK_TAKE_PROFIT_PIPS` | `10`, `20` | Bracket distances in pips. |
-| `RISK_MAX_POSITIONS` | `1` | Maximum open positions per symbol. |
-| `EXECUTOR_ALLOWED_ALGORITHMS` | `ema_cross_v1` | Comma-separated strategy IDs accepted by executor. |
-| `BACKTEST_DAYS` | `30` | Days requested when downloading historical bars. |
-| `DASHBOARD_HOST`, `DASHBOARD_PORT` | `127.0.0.1`, `8050` | Local dashboard address. |
+| `IB_HOST` | `127.0.0.1` | Host de IB Gateway/TWS. |
+| `IB_PORT` | `4002` | Puerto paper. |
+| `IB_CLIENT_ID_PRODUCER` | `1` | Client ID del productor de datos. |
+| `IB_CLIENT_ID_EXECUTOR` | `2` | Client ID del ejecutor de órdenes. |
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | Dirección del broker Kafka. |
+| `TOPIC_TICKS` | `ticks` | Tópico de datos crudos. |
+| `TOPIC_CANDLES` | `velas` | Tópico de velas (legacy `TOPIC_VELAS` soportado). |
+| `TOPIC_SIGNALS` | `signals` | Tópico de señales. |
+| `SYMBOL` | `EURUSD` | Instrumento Forex. |
+| `WINDOW_SECONDS` | `60` | Longitud de ventana en Spark. |
+| `EMA_FAST`, `EMA_SLOW` | `9`, `21` | Períodos EMA por defecto. |
+| `USE_RSI_FILTER` | `false` | Habilita filtro RSI. |
+| `USE_TREND_FILTER` | `false` | Habilita filtro de tendencia EMA larga. |
+| `RSI_PERIOD`, `RSI_OVERBOUGHT`, `RSI_OVERSOLD` | `14`, `70`, `30` | Parámetros del RSI. |
+| `EMA_TREND_PERIOD` | `50` | Período de la EMA de tendencia. |
+| `RISK_TRADE_SIZE` | `10000` | Cantidad en unidades base. |
+| `RISK_STOP_LOSS_PIPS`, `RISK_TAKE_PROFIT_PIPS` | `10`, `20` | Distancias bracket en pips. |
+| `RISK_MAX_POSITIONS` | `1` | Máximo de posiciones por símbolo. |
+| `EXECUTOR_ALLOWED_ALGORITHMS` | `ema_cross_v1` | IDs aceptados por el ejecutor (CSV). |
+| `BACKTEST_DAYS` | `30` | Días solicitados a IB al descargar. |
+| `BACKTEST_SPREAD_PIPS`, `BACKTEST_SLIPPAGE_PIPS` | `2.0`, `0.5` | Costos del backtest. |
+| `BACKTEST_SL_PIPS`, `BACKTEST_TP_PIPS` | `10`, `20` | SL/TP del backtest. |
+| `DASHBOARD_HOST`, `DASHBOARD_PORT` | `127.0.0.1`, `8050` | Dirección del dashboard. |
+| `DASHBOARD_MANAGE_PRODUCER` | `true` | Permite al dashboard lanzar el productor IB. |
 
-`DASHBOARD_MANAGE_PRODUCER` defaults to `true`, so the dashboard can launch the
-IB producer when its Start action is used. Set it to `false` if the producer is
-already running in a separate terminal.
+---
 
-## Data contracts and compatibility
+## Contratos de datos
 
-Kafka candle messages contain `symbol`, `inicio`, `open`, `high`, `low`,
-`close`, and `num_ticks`. Strategy signal messages contain `id_algoritmo`,
-`symbol`, `signal`, `precio_referencia`, and `timestamp`. These field names and
-the existing topic name `velas` are kept stable for existing producers and
-consumers.
+### Velas (tópico `velas`)
+
+```json
+{
+  "symbol": "EURUSD",
+  "inicio": "2026-11-25T20:51:00.000Z",
+  "open": 1.097665,
+  "high": 1.097685,
+  "low": 1.097630,
+  "close": 1.097685,
+  "num_ticks": 430
+}
+```
+
+### Señales (tópico `signals`)
+
+```json
+{
+  "id_algoritmo": "ema_cross_trend",
+  "symbol": "EURUSD",
+  "signal": "BUY",
+  "precio_referencia": 1.097685,
+  "timestamp": "2026-11-25T20:52:14.123456Z"
+}
+```
+
+### Ticks (tópico `ticks`)
+
+```json
+{
+  "symbol": "EURUSD",
+  "bid": 1.097685,
+  "ask": 1.097695,
+  "timestamp": "2026-11-25T20:52:14.043526Z"
+}
+```
+
+Estos nombres de campo y el tópico `velas` se mantienen estables por
+compatibilidad con consumidores existentes.
+
+---
 
 ## Troubleshooting
 
-### PySpark says `Could not find valid SPARK_HOME`
+### PySpark: `Could not find valid SPARK_HOME`
 
-When using the pip-installed package, use the project's Python environment and
-start the job with:
+Usa el entorno Python del proyecto y arranca el job con:
 
 ```powershell
 python run_candles.py
 ```
 
-The script uses the current Python executable for both Spark's driver and
-worker. The Docker-based Spark service is another supported option.
+El script usa el ejecutable de Python actual para driver y worker. La
+alternativa Docker también es válida.
 
 ### `PYTHON_VERSION_MISMATCH`
 
-Spark's Python worker and driver must have the same minor version. Check
-`python --version` and interpreter paths, activate the intended Python 3.10
-environment, then use `python run_candles.py`. Clear conflicting
-`PYSPARK_PYTHON` or `PYSPARK_DRIVER_PYTHON` overrides from the current shell if
-they point to another interpreter.
+Driver y worker de Spark deben usar la **misma versión menor de Python**.
+Verifica `python --version`, activa el entorno 3.10 correcto y usa
+`python run_candles.py`, limpia overrides conflictivos de `PYSPARK_PYTHON` y
+`PYSPARK_DRIVER_PYTHON` si apuntan a otro intérprete.
 
-### Kafka is running but a test receives no message
+### Kafka corriendo pero un test no recibe mensaje
 
-Confirm broker reachability and topic names, then check producer delivery
-errors and consumer group offsets. A producer's “published” log alone does not
-prove that a consumer in another group has read the message. Run the isolated
-round-trip test with Kafka available:
+Verifica alcanzabilidad del broker y nombres de tópicos, revisa errores de
+entrega del productor y offsets del consumer group. Un log de "publicado" no
+garantiza que otro consumer group haya leído el mensaje.\
+Test aislado:
 
 ```powershell
 python -m tests.test_1
 ```
 
-### No candle or strategy signal appears
+### No aparece ninguna vela o señal
 
-Check that the IB producer, Kafka, and Spark job are all running, and inspect
-the `ticks`, `velas`, and `signals` topics independently. A candle appears
-after a time window closes. The strategy also requires indicator warm-up and
-only emits on a crossover; no signal may be the expected result.
+Verifica que **producer IB, Kafka y Spark job estén todos corriendo**, inspecciona
+`ticks`, `velas` y `signals` de forma independiente, que una vela aparecezca **después**
+de que la ventana cierra.\
+La estrategia requiere warm-up de indicadores y solo
+emite en un cruce; **no emitir ninguna señal es un resultado esperado** durante
+periodos largos.
 
-### `winutils.exe` warning on Windows
+### Warning `winutils.exe` en Windows
 
-Spark may warn that Hadoop's `winutils.exe` is missing. For local Spark
-transformations this warning may be non-fatal. If Spark stops with an actual
-Hadoop-related exception, prefer the containerized Spark service or install a
-compatible Hadoop Windows setup for your Spark version.
+Spark puede advertir que falta `winutils.exe` para transformaciones locales es
+usualmente **no fatal**, si Spark falla con excepción Hadoop real, prefiere el
+servicio Spark contenedorizado o instala un Hadoop Windows compatible con tu
+versión de Spark.
 
-## Generated and local-only files
+### IB rechaza la conexión con `clientId already in use`
 
-`.env`, logs, local market data, reports, Python caches, and Spark checkpoints
-are excluded from version control. Preserve reports you need to keep outside
-the ignored directories or adjust the ignore policy intentionally; never add
-credentials to source control.
+El `clientId` quedó bloqueado por una desconexión previa abrupta espera
+30-60 s y reintenta, el código ya reintenta con `clientId` desplazado
+(`1, 11, 21...` para productor; `2, 12, 22...` para ejecutor).
+
+### La orden queda en `Submitted` sin llenarse
+
+Normal en demo los market orders se llenan en 1-2 s casi siempre si tarda,
+verifica que el contrato sea `IDEALPRO` y que el mercado Forex esté abierto
+(domingo 22:00 UTC a viernes 22:00 UTC).
+
+---
+
+## Archivos generados y locales
+
+Estos archivos están excluidos de control de versiones (`.gitignore`):
+
+- `.env` (contiene credenciales).
+- `logs/` (logs runtime).
+- `data/historical/` (CSVs de velas).
+- `reports/` (backtests y comparativas).
+- `checkpoints/` (checkpoints de Spark Streaming).
+- `__pycache__/`, `.venv/`, `venv/`.
+
+**Preserva manualmente** cualquier reporte que necesites conservar fuera de
+`reports/`. **Nunca** agregues credenciales al repositorio.
+
+---
+
+## Estado del proyecto
+
+- ✅ Pipeline completo funcional (ticks → velas → señales → órdenes).
+- ✅ 4 variantes de estrategia implementadas y comparadas.
+- ✅ Backtesting honesto con spread/slippage, split temporal y sin look-ahead.
+- ✅ Búsqueda genética con walk-forward y Deflated Sharpe Ratio.
+- ✅ Dashboard local con modo live y demo.
+- ✅ Tests unitarios y de integración.
+- ⚠️ **Ninguna estrategia ha demostrado edge estadísticamente significativo**
+  con los datos actuales (30 días M1). El proyecto es un **framework listo
+  para recibir estrategias futuras**, no un sistema rentable hoy.
+
+---
+
+## Licencia y uso
+
+Proyecto educativo. **No usar con dinero real** sin validación independiente
+extensa, más historia, y supervisión profesional, los autores no se hacen
+responsables de pérdidas derivadas de su uso.
+```
+
+---
+

@@ -1,7 +1,7 @@
-"""Paper-account integration test that submits one bracket order.
+"""Prueba de integración con cuenta paper que envía una orden bracket.
 
-Run this only after the offline checks in ``test_4.py`` pass. This test can
-submit a real order to the configured IB paper account.
+Ejecútala solo después de que pasen las pruebas locales de ``test_4.py``.
+Esta prueba puede enviar una orden real a la cuenta paper configurada en IB.
 """
 import math
 import time
@@ -35,7 +35,7 @@ def run_connectivity_check():
 
 
 def submit_paper_bracket_order():
-    """Submit a 10,000 EURUSD BUY bracket order to the paper account."""
+    """Envía una orden bracket BUY de 10 000 EURUSD a la cuenta paper."""
     ex = SignalExecutor()
     ex._connect_with_retry()
 

@@ -1,4 +1,4 @@
-"""Start the Interactive Brokers-to-Kafka market-data producer."""
+"""Inicia el productor de datos de mercado desde Interactive Brokers hacia Kafka."""
 from src.producer.ib_tick_producer import IBTickProducer
 
 

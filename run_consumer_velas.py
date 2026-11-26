@@ -1,4 +1,4 @@
-"""Compatibility entry point; use ``python run_candle_consumer.py`` instead."""
+"""Punto de entrada compatible; para nuevos comandos usa ``python run_candle_consumer.py``."""
 from run_candle_consumer import main
 
 

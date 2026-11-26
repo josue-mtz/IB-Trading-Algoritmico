@@ -1,1 +1,1 @@
-"""Spark streaming transformations."""
+"""Transformaciones de datos con Spark Streaming."""

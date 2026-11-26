@@ -1,1 +1,1 @@
-"""Streaming trading strategies and technical indicators."""
+"""Estrategias de trading e indicadores técnicos en tiempo real."""

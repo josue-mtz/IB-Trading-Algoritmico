@@ -1,4 +1,4 @@
-"""Optimize EMA parameters on historical training windows and compare with V3."""
+"""Optimiza parámetros EMA con ventanas históricas y los compara con V3."""
 import argparse
 import json
 from datetime import datetime, timezone
@@ -35,10 +35,10 @@ def run_ga_comparison(
     generations: int = 8,
     seed: int = 42,
 ) -> Path:
-    """Run a seeded genetic search and save metrics, trades, and an equity chart.
+    """Ejecuta una búsqueda genética reproducible y guarda métricas, operaciones y gráfica.
 
-    The final 30 percent of the dataset is held out until the candidate has
-    been selected. It is measured once and is never used by the optimizer.
+    El 30 por ciento final del conjunto de datos se reserva hasta elegir el
+    candidato. Se evalúa una sola vez y el optimizador nunca lo utiliza.
     """
     data = pd.read_csv(csv_path)
     missing_columns = REQUIRED_COLUMNS.difference(data.columns)
@@ -86,7 +86,7 @@ def run_ga_comparison(
         n_trials=1,
     )
 
-    # OOS is evaluated only after selection; its result must not influence the GA.
+    # OOS se evalúa después de seleccionar el candidato; el resultado no debe influir en el AG.
     ga_oos = evaluate_window(
         data,
         ga_candidate,

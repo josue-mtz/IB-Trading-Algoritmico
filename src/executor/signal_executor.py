@@ -1,7 +1,8 @@
-"""Consume Kafka signals, apply risk rules, and submit bracket orders to IB.
+"""Consume señales de Kafka, aplica controles de riesgo y envía órdenes bracket a IB.
 
-The executor refuses live-account ports and non-paper accounts. A bracket
-contains a market entry, a take-profit limit order, and a stop-loss order.
+El ejecutor rechaza los puertos de cuentas reales y las cuentas que no sean
+paper. Una orden bracket incluye una entrada de mercado, una orden límite de
+take profit y una orden stop loss.
 """
 import json
 import os
@@ -34,9 +35,9 @@ from src.runtime.state import (
 
 ORDERS_LOG = LOGS_DIR / "orders.jsonl"
 
-# Dashboard-launched workers obey the Start/Pause control file.
+# Los procesos iniciados desde el panel obedecen el archivo de control Iniciar/Pausar.
 CONTROLLED_BY_DASHBOARD = os.getenv("TRADING_CONTROL") == "dashboard"
-# Interactive Brokers live-account ports; this project is configured for paper trading.
+# Puertos de cuentas reales de IB; este proyecto está configurado para paper trading.
 LIVE_PORTS = {4001, 7496}
 STATUS_EVERY_S = 2.0
 
@@ -52,14 +53,14 @@ class SignalExecutor:
         self.ticker = None
         self._last_status = 0.0
         self._last_reconnect = 0.0
-        # Map order IDs to trade IDs and roles so fill tracking survives restarts.
+        # Relaciona los ID de órdenes con operaciones y roles para conservar el seguimiento tras reinicios.
         self.order_map = read_json(ORDER_MAP_FILE, {}) or {}
         self._seen_exec_ids = {
             r["exec_id"] for r in read_jsonl(FILLS_FILE)
             if r.get("type") == "fill" and r.get("exec_id")
         }
 
-    # ---------- Interactive Brokers connection ----------
+    # ---------- Conexión con Interactive Brokers ----------
 
     def _connect_with_retry(self, max_attempts: int = 5, step: int = 10) -> None:
         base_id = IB_CLIENT_ID_EXECUTOR
@@ -82,7 +83,7 @@ class SignalExecutor:
         raise RuntimeError("Could not connect to IB Gateway after multiple attempts.")
 
     def _maybe_reconnect(self) -> None:
-        """Retry a dropped IB connection every 15 seconds using the same client ID."""
+        """Reintenta cada 15 segundos una conexión IB interrumpida con el mismo ID de cliente."""
         if self.ib.isConnected() or time.time() - self._last_reconnect < 15:
             return
         self._last_reconnect = time.time()
@@ -95,7 +96,7 @@ class SignalExecutor:
             self.log.warning("Could not reconnect to IB: %s", e)
 
     def _get_positions(self) -> List[dict]:
-        """Read the current open positions from IB."""
+        """Lee las posiciones abiertas actuales desde IB."""
         positions = self.ib.positions()
         return [
             {
@@ -110,7 +111,7 @@ class SignalExecutor:
             for p in positions
         ]
 
-    # ---------- Event logging ----------
+    # ---------- Registro de eventos ----------
 
     def _log_event(self, event: str, signal: dict, extra: Optional[dict] = None) -> None:
         entry = {
@@ -129,7 +130,7 @@ class SignalExecutor:
         except Exception as e:
             self.log.error("Could not write to orders.jsonl: %s", e)
 
-    # ---------- Executions reported by IB ----------
+    # ---------- Ejecuciones informadas por IB ----------
 
     def _order_key(self, order_id: int, client_id: Optional[int] = None) -> str:
         if client_id is None:
@@ -137,7 +138,7 @@ class SignalExecutor:
         return f"{client_id}:{order_id}"
 
     def _register_orders(self, trade_id: str, roles: dict) -> None:
-        """Persist order roles before submission because fills can arrive immediately."""
+        """Guarda los roles de las órdenes antes de enviarlas, pues pueden ejecutarse de inmediato."""
         for order_id, role in roles.items():
             self.order_map[self._order_key(order_id)] = {"trade_id": trade_id, "role": role}
         try:
@@ -167,7 +168,7 @@ class SignalExecutor:
                 "trade_id": info["trade_id"],
                 "role": info["role"],
                 "symbol": SYMBOL,
-                "side": ex.side,  # IB uses BOT for buy and SLD for sell.
+                "side": ex.side,  # IB usa BOT para compra y SLD para venta.
                 "shares": float(ex.shares),
                 "price": float(ex.price),
             })
@@ -202,7 +203,7 @@ class SignalExecutor:
     def _on_commission(self, trade, fill, report) -> None:
         self._record_commission(report)
 
-    # ---------- Dashboard status heartbeat ----------
+    # ---------- Actualización periódica del estado del panel ----------
 
     def _write_status(self, force: bool = False) -> None:
         now = time.time()
@@ -247,11 +248,11 @@ class SignalExecutor:
         except Exception as e:
             self.log.error("Could not write executor_status.json: %s", e)
 
-    # ---------- Order execution ----------
+    # ---------- Ejecución de órdenes ----------
 
     def _place_bracket(self, signal: dict) -> None:
         qty = self.risk.trade_size
-        action = signal["signal"]  # BUY or SELL.
+        action = signal["signal"]  # BUY o SELL.
         ref = float(signal["precio_referencia"])
 
         sl_price, tp_price = self.risk.compute_bracket_prices(action, ref)
@@ -299,7 +300,7 @@ class SignalExecutor:
         trades = [self.ib.placeOrder(self.contract, order) for order in orders]
 
         parent_trade = trades[0]
-        # Allow IB a short time to report order status.
+        # Da a IB un momento para informar el estado de las órdenes.
         self.ib.sleep(2)
         inactive_orders = [
             trade.order.orderId
@@ -377,7 +378,7 @@ class SignalExecutor:
             )
             return False
 
-    # ---------- Main worker loop ----------
+    # ---------- Ciclo principal del proceso ----------
 
     def run(self) -> None:
         create_topic_if_not_exists(TOPIC_SIGNALS)
@@ -392,7 +393,7 @@ class SignalExecutor:
         self.log.info("Connecting to IB Gateway.")
         self._connect_with_retry()
         accounts = self.ib.managedAccounts()
-        if not all(a.startswith("DU") for a in accounts):  # IB paper account IDs start with DU.
+        if not all(a.startswith("DU") for a in accounts):  # Los ID de cuentas paper de IB comienzan con DU.
             self.ib.disconnect()
             raise RuntimeError(
                 f"Non-paper account detected {accounts}; aborting for safety."
@@ -403,7 +404,7 @@ class SignalExecutor:
 
         self.ib.execDetailsEvent += self._on_exec_details
         self.ib.commissionReportEvent += self._on_commission
-        for fill in self.ib.fills():  # Include executions already reported in this IB session.
+        for fill in self.ib.fills():  # Incluye ejecuciones ya informadas durante esta sesión de IB.
             self._record_fill(fill)
         try:
             self.ticker = self.ib.reqMktData(self.contract, "", False, False)
@@ -424,8 +425,8 @@ class SignalExecutor:
 
         try:
             while True:
-                # Alternate IB and Kafka polling so fills continue to be processed
-                # while the Kafka consumer waits for signals.
+                # Alterna la consulta a IB y Kafka para procesar ejecuciones
+                # mientras el consumidor de Kafka espera nuevas señales.
                 self.ib.sleep(0.2)
                 self._write_status()
                 self._maybe_reconnect()

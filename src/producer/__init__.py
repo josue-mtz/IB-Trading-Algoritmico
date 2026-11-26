@@ -1,1 +1,1 @@
-"""Interactive Brokers market-data producer."""
+"""Productor de datos de mercado de Interactive Brokers."""

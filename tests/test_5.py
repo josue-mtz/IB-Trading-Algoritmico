@@ -1,4 +1,4 @@
-"""Offline tests for backtest metrics, trading behavior, and strategy variants."""
+"""Pruebas locales de métricas de backtest, comportamiento y variantes de estrategia."""
 import pandas as pd
 from src.algorithms.indicadores import rsi_series
 from src.algorithms.ema_cross import EMACross
@@ -18,7 +18,7 @@ def _trades(pnls, exit_days=None):
     ]
 
 
-# ---------- Core metric tests ----------
+# ---------- Pruebas principales de métricas ----------
 
 def test_winrate():
     assert winrate([]) == 0.0
@@ -103,7 +103,7 @@ def test_engine_sl_hit():
     print(f"PASS test_engine_sl_hit (reasons={reasons})")
 
 
-# ---------- RSI tests ----------
+# ---------- Pruebas de RSI ----------
 
 def test_rsi_monotonic_up():
     values = list(range(1, 20))
@@ -130,7 +130,7 @@ def test_rsi_warmup_and_mixed():
     print(f"PASS test_rsi_warmup_and_mixed (rsi[14]={rsi[14]:.2f})")
 
 
-# ---------- Strategy variant tests ----------
+# ---------- Pruebas de variantes de estrategia ----------
 
 def test_variant_ids_are_distinct():
     v1 = EMACross()
@@ -143,7 +143,7 @@ def test_variant_ids_are_distinct():
 
 
 def test_variant_buffer_size_sufficient():
-    """The buffer must cover trend_period + slow + a safety margin."""
+    """El búfer debe cubrir trend_period + slow y un margen de seguridad."""
     algo = EMACross(use_trend_filter=True, trend_period=50, slow=21)
     assert algo.buffer.maxlen >= 50 + 21, f"buffer={algo.buffer.maxlen}"
     print(f"PASS test_variant_buffer_size_sufficient (maxlen={algo.buffer.maxlen})")

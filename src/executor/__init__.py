@@ -1,1 +1,1 @@
-"""Signal validation and Interactive Brokers order execution."""
+"""Validación de señales y ejecución de órdenes en Interactive Brokers."""

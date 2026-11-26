@@ -1,4 +1,4 @@
-"""Unit tests for converting synthetic ticks into OHLC candles with Spark."""
+"""Pruebas unitarias de conversión de ticks sintéticos a velas OHLC con Spark."""
 from pyspark.sql import SparkSession
 from src.spark.ticks_to_velas import transform
 
@@ -24,8 +24,8 @@ def test_vela_aggregation():
     spark = get_spark()
     spark.sparkContext.setLogLevel("ERROR")
 
-    # Three ticks in the same one-minute window (12:00:00 through 12:01:00).
-    # Mid-prices: 1.08501, 1.08511, 1.08491.
+    # Tres ticks dentro del mismo intervalo de un minuto (12:00 a 12:01).
+    # Precios medios: 1.08501, 1.08511 y 1.08491.
     data = [
         ("EURUSD", 1.08500, 1.08502, "2025-01-01T12:00:05.000000Z"),
         ("EURUSD", 1.08510, 1.08512, "2025-01-01T12:00:30.000000Z"),
@@ -56,7 +56,7 @@ def test_multiple_windows():
     spark = get_spark()
     spark.sparkContext.setLogLevel("ERROR")
 
-    # Two ticks in the 12:00 window and two in the 12:01 window.
+    # Dos ticks en el intervalo de las 12:00 y dos en el de las 12:01.
     data = [
         ("EURUSD", 1.08500, 1.08502, "2025-01-01T12:00:05.000000Z"),
         ("EURUSD", 1.08510, 1.08512, "2025-01-01T12:00:30.000000Z"),

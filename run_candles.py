@@ -1,4 +1,4 @@
-"""Start the Spark job that converts Kafka ticks into time-based candles."""
+"""Inicia el proceso Spark que convierte los ticks de Kafka en velas por intervalo."""
 import os
 import sys
 

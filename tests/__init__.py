@@ -1,1 +1,1 @@
-"""Offline and service integration checks for the project."""
+"""Pruebas locales y de integración con servicios externos."""

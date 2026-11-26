@@ -1,4 +1,4 @@
-"""Kafka integration checks for connectivity, topic creation, and message delivery."""
+"""Pruebas de integración de Kafka para conexión, tópicos y entrega de mensajes."""
 import json
 import time
 import uuid
@@ -9,19 +9,19 @@ from src.common.kafka_utils import create_topic_if_not_exists, make_producer, se
 TEST_TOPIC = "test-fase1-roundtrip"
 
 def test_kafka_connection():
-    """Verify that Kafka is running and accepting connections."""
+    """Comprueba que Kafka esté activo y acepte conexiones."""
     producer = Producer({"bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS})
-    # A successful metadata request confirms the broker connection.
+    # Si la solicitud de metadatos funciona, la conexión con el broker está disponible.
     producer.list_topics(timeout=5)
     print("Kafka is reachable at", KAFKA_BOOTSTRAP_SERVERS)
 
 def test_create_topic():
-    """Verify that a Kafka topic can be created."""
+    """Comprueba que se pueda crear un tópico de Kafka."""
     create_topic_if_not_exists(TOPIC_TICKS)
     print(f"Topic '{TOPIC_TICKS}' is available.")
 
 def test_producer_consumer_roundtrip():
-    """Publish and consume a message in an isolated test topic."""
+    """Publica y consume un mensaje en un tópico aislado para pruebas."""
     create_topic_if_not_exists(TEST_TOPIC)
     test_msg = {"symbol": "EURUSD", "bid": 1.08500, "ask": 1.08502, "timestamp": "2025-01-01T00:00:00Z"}
     c = Consumer({

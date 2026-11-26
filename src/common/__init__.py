@@ -1,1 +1,1 @@
-"""Shared logging and Kafka helpers."""
+"""Funciones compartidas de registro y utilidades de Kafka."""

@@ -1,4 +1,4 @@
-"""Offline unit tests for risk checks, filters, and bracket order construction."""
+"""Pruebas unitarias locales de riesgo, filtros y creación de órdenes bracket."""
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -73,7 +73,7 @@ def test_reject_max_positions():
 
 
 def test_accept_when_position_zero():
-    """A net-zero position does not count as open."""
+    """Una posición con saldo neto cero no cuenta como abierta."""
     rm = RiskManager(allowed_algorithms=ALLOWED)
     positions = [{"symbol": "EURUSD", "position": 0.0}]
     ok, _ = rm.can_execute(_make_signal(), positions)
@@ -82,7 +82,7 @@ def test_accept_when_position_zero():
 
 
 def test_reject_different_symbol_open_does_not_block():
-    """An open position in another symbol does not block EURUSD."""
+    """Una posición abierta en otro símbolo no bloquea EURUSD."""
     rm = RiskManager(allowed_algorithms=ALLOWED)
     positions = [{"symbol": "GBPUSD", "position": 10000.0}]
     ok, _ = rm.can_execute(_make_signal(symbol="EURUSD"), positions)
@@ -113,8 +113,8 @@ def test_reject_missing_field():
 def test_bracket_prices_buy():
     rm = RiskManager(allowed_algorithms=ALLOWED, sl_pips=10, tp_pips=20)
     sl, tp = rm.compute_bracket_prices("BUY", 1.08500)
-    # SL = 1.08500 - 0.0010 = 1.08400
-    # TP = 1.08500 + 0.0020 = 1.08700
+    # SL = 1.08500 - 0.0010 = 1.08400.
+    # TP = 1.08500 + 0.0020 = 1.08700.
     assert abs(sl - 1.08400) < 1e-9, f"sl={sl}"
     assert abs(tp - 1.08700) < 1e-9, f"tp={tp}"
     print(f"PASS test_bracket_prices_buy (SL={sl}, TP={tp})")
@@ -123,8 +123,8 @@ def test_bracket_prices_buy():
 def test_bracket_prices_sell():
     rm = RiskManager(allowed_algorithms=ALLOWED, sl_pips=10, tp_pips=20)
     sl, tp = rm.compute_bracket_prices("SELL", 1.08500)
-    # SL = 1.08500 + 0.0010 = 1.08600
-    # TP = 1.08500 - 0.0020 = 1.08300
+    # SL = 1.08500 + 0.0010 = 1.08600.
+    # TP = 1.08500 - 0.0020 = 1.08300.
     assert abs(sl - 1.08600) < 1e-9, f"sl={sl}"
     assert abs(tp - 1.08300) < 1e-9, f"tp={tp}"
     print(f"PASS test_bracket_prices_sell (SL={sl}, TP={tp})")

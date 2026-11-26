@@ -1,4 +1,4 @@
-"""Publish live EUR/USD bid and ask updates from Interactive Brokers to Kafka."""
+"""Publica en Kafka las cotizaciones bid y ask de EUR/USD recibidas de IB."""
 import asyncio
 from datetime import datetime, timezone
 from ib_insync import IB, Forex, util
@@ -10,7 +10,7 @@ log = get_logger("ib_tick_producer")
 
 
 class IBTickProducer:
-    """Maintain an IB market-data subscription and publish valid quotes."""
+    """Mantiene una suscripción de datos de IB y publica cotizaciones válidas."""
 
     def __init__(self):
         self.ib = IB()
@@ -20,9 +20,9 @@ class IBTickProducer:
         self.tick_count = 0
 
     def _on_pending_tickers(self, tickers):
-        """Publish valid quotes whenever IB reports updated tickers."""
+        """Publica cotizaciones válidas cada vez que IB informa cambios."""
         for ticker in tickers:
-            # Forex may not provide a last price; use the bid and ask instead.
+            # Forex podría no proporcionar el último precio; en su lugar se usa bid y ask.
             bid = ticker.bid if ticker.bid and ticker.bid > 0 else None
             ask = ticker.ask if ticker.ask and ticker.ask > 0 else None
 
@@ -42,14 +42,14 @@ class IBTickProducer:
                     key=SYMBOL.encode("utf-8"),
                     value=serialize_json(tick_data),
                 )
-                self.producer.poll(0)  # Serve delivery callbacks without blocking.
+                self.producer.poll(0)  # Atiende confirmaciones de entrega sin bloquear.
                 self.tick_count += 1
                 log.info("Published tick #%s: %s", self.tick_count, tick_data)
             except Exception as e:
                 log.exception("Could not publish tick: %s", e)
 
     async def _connect_with_retry(self, max_attempts=5, step=10):
-        """Try alternate client IDs if the configured ID is already in use."""
+        """Prueba otros ID de cliente si el ID configurado ya está en uso."""
         base_id = IB_CLIENT_ID_PRODUCER
         for attempt in range(max_attempts):
             cid = base_id + attempt * step
@@ -69,7 +69,7 @@ class IBTickProducer:
         raise RuntimeError("Could not connect to IB Gateway after multiple attempts.")
 
     async def _connect_and_subscribe(self):
-        """Connect to IB Gateway and subscribe to the configured currency pair."""
+        """Se conecta a IB Gateway y se suscribe al par de divisas configurado."""
         await self._connect_with_retry()
         await self.ib.qualifyContractsAsync(self.contract)
         log.info("Qualified contract: %s", self.contract)
@@ -78,13 +78,13 @@ class IBTickProducer:
         log.info("Subscribed to %s market data. Waiting for quotes.", SYMBOL)
 
     def run(self):
-        """Create the Kafka topic, connect to IB, and run until interrupted."""
+        """Crea el tópico Kafka, se conecta a IB y ejecuta el proceso hasta interrumpirse."""
         create_topic_if_not_exists(TOPIC_TICKS)
 
         self.running = True
         try:
             asyncio.get_event_loop().run_until_complete(self._connect_and_subscribe())
-            # Keep the process alive while listening for ticks.
+            # Mantiene el proceso activo mientras espera ticks.
             self.ib.run()
         except KeyboardInterrupt:
             log.info("Stopped by user (Ctrl+C).")

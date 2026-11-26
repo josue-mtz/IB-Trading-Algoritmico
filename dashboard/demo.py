@@ -1,4 +1,4 @@
-"""Create isolated synthetic dashboard data without connecting to IB or Kafka."""
+"""Genera datos sintéticos aislados para paneles de control, sin necesidad de conectarte a IB o Kafka"""
 import json
 import math
 import random
@@ -10,7 +10,7 @@ from src.runtime import state
 
 
 class DemoProcessManager:
-    """Simulate worker state without launching background processes."""
+    """Simular el estado del worker sin iniciar procesos en segundo plano"""
 
     def __init__(self):
         self.alive = {"producer": False, "algorithm": False, "executor": False}
@@ -44,7 +44,7 @@ def seed_demo(orders_log: Path, days: int = 18, seed: int = 7) -> None:
     orders, records = [], []
     price = 1.0850
 
-    # Simulate a few trades per business day with the default paper-trading size.
+    # Simula unas cuantas operaciones por día hábil con paper-trading size
     for d in range(days, 0, -1):
         day = (now - timedelta(days=d)).replace(hour=8, minute=0, second=0, microsecond=0)
         if day.weekday() >= 5:
@@ -75,7 +75,7 @@ def seed_demo(orders_log: Path, days: int = 18, seed: int = 7) -> None:
                                 "side": sd, "shares": 10000.0, "price": px})
                 records.append({"type": "commission", "exec_id": ex, "commission": 0.4})
 
-    # Add one currently open trade.
+    # Añadir una operación actualmente abierta
     tid = "demo_open"
     entry = round(price, 5)
     t_in = now - timedelta(minutes=23)
@@ -88,7 +88,7 @@ def seed_demo(orders_log: Path, days: int = 18, seed: int = 7) -> None:
                     "shares": 10000.0, "price": entry})
     records.append({"type": "commission", "exec_id": "open-entry", "commission": 0.4})
 
-    # Add sample signal and rejection events.
+    # Añadir eventos de señal y de rechazo de muestra
     orders.append({"timestamp": _iso(now - timedelta(minutes=9)), "event": "signal_received",
                    "id_algoritmo": algo, "symbol": "EURUSD", "signal": "SELL", "precio_referencia": entry})
     orders.append({"timestamp": _iso(now - timedelta(minutes=9)), "event": "rejected",
@@ -100,7 +100,7 @@ def seed_demo(orders_log: Path, days: int = 18, seed: int = 7) -> None:
     orders_log.write_text("\n".join(json.dumps(o) for o in orders) + "\n", encoding="utf-8")
     state.FILLS_FILE.write_text("\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8")
 
-    # Write sample status heartbeats for the executor and strategy.
+    # Escribe señales de estado (heartbeats) de ejemplo para el ejecutor y la estrategia
     bid = round(entry + 0.0007, 5)
     state.write_json_atomic(state.EXECUTOR_STATUS_FILE, {
         "updated_at": state.now_iso(), "ib_connected": True, "accounts": ["DU1234567"],
@@ -128,5 +128,5 @@ def seed_demo(orders_log: Path, days: int = 18, seed: int = 7) -> None:
                   "bias": "BULLISH" if series[-1]["fast"] > series[-1]["slow"] else "BEARISH",
                   "series": series},
     })
-    # Start paused so the user can try the dashboard's Start button.
+    # Comienza en pausa para que el usuario pueda probar el botón de inicio del panel
     state.save_control({**state._default_control(), "variant": "v3"})

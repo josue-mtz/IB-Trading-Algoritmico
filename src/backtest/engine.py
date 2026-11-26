@@ -1,9 +1,9 @@
-"""Simulate EMA trades without using information from future candles.
+"""Simula operaciones EMA sin usar información de velas futuras.
 
-Signals are calculated at a candle close and filled at the next candle open.
-Spread and slippage are charged against the strategy. If stop loss and take
-profit are both touched within one candle, the conservative stop-loss result
-is used.
+Las señales se calculan al cierre de una vela y se ejecutan en la apertura
+de la siguiente. El spread y el deslizamiento se aplican en contra de la
+estrategia. Si el stop loss y el take profit se alcanzan dentro de la misma
+vela, se usa el resultado conservador del stop loss.
 """
 from dataclasses import dataclass, asdict
 from typing import List, Optional, Tuple
@@ -40,7 +40,7 @@ class Trade:
 
 
 class BacktestEngine:
-    """Run a single-position backtest with optional RSI and trend filters."""
+    """Ejecuta un backtest con una posición a la vez y filtros RSI y de tendencia opcionales."""
 
     def __init__(
         self,
@@ -76,7 +76,7 @@ class BacktestEngine:
         self._pip_value = PIP_VALUE_USD_PER_10K * (lot_units / 10000.0)
 
     def _min_warmup(self) -> int:
-        """Return the number of candles needed to initialize every active filter."""
+        """Devuelve cuántas velas se necesitan para inicializar todos los filtros activos."""
         return max(
             self.slow,
             self.trend_period if self.use_trend_filter else 0,
@@ -84,7 +84,7 @@ class BacktestEngine:
         ) + 2
 
     def _passes_filters(self, side, i, closes, rsi_s, trend_s):
-        """Check optional RSI and trend rules before accepting a crossover."""
+        """Comprueba las reglas RSI y de tendencia antes de aceptar un cruce."""
         if self.use_rsi_filter and rsi_s is not None:
             r = rsi_s[i]
             if r is not None:
@@ -106,11 +106,11 @@ class BacktestEngine:
         df: pd.DataFrame,
         start_index: Optional[int] = None,
     ) -> Tuple[List[Trade], List[float]]:
-        """Simulate trades and return them with equity after each closed trade.
+        """Simula operaciones y devuelve el capital tras cada operación cerrada.
 
-        ``start_index`` begins signal evaluation at a later candle while
-        retaining earlier rows to initialize indicators. This is used for
-        walk-forward validation and holdout evaluation.
+            ``start_index`` inicia la evaluación de señales en una vela posterior,
+            pero conserva las filas anteriores para inicializar los indicadores.
+            Se usa en la validación walk-forward y en la evaluación del periodo reservado.
         """
         min_warmup = self._min_warmup()
         if len(df) < min_warmup:
@@ -209,5 +209,5 @@ class BacktestEngine:
 
 
 def trades_to_dicts(trades: List[Trade]) -> List[dict]:
-    """Convert trade records into dictionaries suitable for CSV and JSON output."""
+    """Convierte los registros de operaciones en diccionarios para CSV y JSON."""
     return [asdict(t) for t in trades]

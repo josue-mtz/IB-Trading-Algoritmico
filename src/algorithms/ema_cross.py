@@ -1,4 +1,4 @@
-"""EMA crossover strategy with optional RSI and long-term trend filters."""
+"""Estrategia de cruce EMA con filtros opcionales de RSI y tendencia de largo plazo."""
 from typing import Optional
 
 from config.settings import (
@@ -11,7 +11,7 @@ from src.algorithms.indicators import ema_series, rsi_series, detect_cross
 
 
 class EMACross(BaseAlgorithm):
-    """Generate buy or sell signals when the fast EMA crosses the slow EMA."""
+    """Genera señales de compra o venta cuando la EMA rápida cruza la lenta."""
 
     id_algoritmo = "ema_cross_v1"
 
@@ -27,7 +27,7 @@ class EMACross(BaseAlgorithm):
         trend_period: int = EMA_TREND_PERIOD,
         id_algoritmo: str = "ema_cross_v1",
     ):
-        # Retain enough history for the indicators and their warm-up periods.
+        # Conserva suficiente historial para los indicadores y sus periodos de calentamiento.
         buffer_size = max(slow * 3, slow + trend_period + 20)
         super().__init__(id_algoritmo=id_algoritmo, buffer_size=buffer_size)
         self.fast = fast
@@ -50,7 +50,7 @@ class EMACross(BaseAlgorithm):
         return self._min_warmup()
 
     def extra_status(self, candles: list) -> dict:
-        """Return recent prices and indicator values for the live dashboard."""
+        """Devuelve precios recientes e indicadores para el panel en tiempo real."""
         closes = [float(candle["close"]) for candle in candles]
         fast = ema_series(closes, self.fast)
         slow = ema_series(closes, self.slow)
@@ -86,7 +86,7 @@ class EMACross(BaseAlgorithm):
         }
 
     def generate_signal(self, candles: list) -> Optional[dict]:
-        """Evaluate the latest candle and return a signal when all filters pass."""
+        """Evalúa la última vela y devuelve una señal si se cumplen todos los filtros."""
         if len(candles) < self._min_warmup():
             return None
 

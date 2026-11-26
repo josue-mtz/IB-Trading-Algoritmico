@@ -1,8 +1,8 @@
-"""Base class for streaming trading algorithms.
+"""Clase base para algoritmos de trading en flujo continuo.
 
-Concrete strategies implement :meth:`generate_signal`; this class manages
-Kafka input/output, indicator warmup, duplicate-signal suppression, and the
-status heartbeat used by the dashboard.
+Las estrategias concretas implementan :meth:`generate_signal`; esta clase
+gestiona la entrada y salida de Kafka, el calentamiento de indicadores, la
+supresión de señales duplicadas y el estado periódico usado por el panel.
 """
 from abc import ABC, abstractmethod
 from collections import deque
@@ -24,17 +24,17 @@ from src.runtime.state import ALGO_STATUS_FILE, install_graceful_shutdown, now_i
 
 
 class BaseAlgorithm(ABC):
-    """Consume candle messages, manage strategy state, and publish trade signals."""
+    """Consume mensajes de velas, gestiona la estrategia y publica señales de trading."""
 
     def __init__(self, id_algoritmo: str, buffer_size: int = 100):
         self.id_algoritmo = id_algoritmo
         self.buffer = deque(maxlen=buffer_size)
         self.last_signal: Optional[str] = None
         self.log = get_logger(id_algoritmo)
-        # Connections are created in run() so unit tests can use the strategy offline.
+        # Las conexiones se crean en run() para permitir pruebas unitarias sin servicios.
         self.consumer = None
         self.producer = None
-        # The heartbeat is enabled only by run(); unit tests do not write runtime files.
+        # El estado periódico solo se activa en run(); las pruebas no escriben archivos de ejecución.
         self.heartbeat_enabled = False
         self.velas_received = 0
         self.last_signal_at: Optional[str] = None
@@ -42,19 +42,19 @@ class BaseAlgorithm(ABC):
 
     @abstractmethod
     def generate_signal(self, candles: list) -> Optional[dict]:
-        """Return no signal or a signal message for the newest candle.
+        """Devuelve None o un mensaje de señal para la vela más reciente.
 
-        Signal dictionaries retain the established Kafka fields ``signal`` and
-        ``precio_referencia`` for compatibility with existing consumers.
+        Los diccionarios conservan los campos Kafka ``signal`` y
+        ``precio_referencia`` para mantener compatibilidad con consumidores existentes.
         """
         raise NotImplementedError
 
     def warmup_needed(self) -> int:
-        """Return how many candles the strategy needs before it can emit signals."""
+        """Devuelve cuántas velas necesita la estrategia antes de emitir señales."""
         return 0
 
     def extra_status(self, candles: list) -> dict:
-        """Return optional strategy details for the dashboard."""
+        """Devuelve detalles opcionales de la estrategia para el panel."""
         return {}
 
     def _write_heartbeat(self, candle: dict) -> None:
@@ -64,7 +64,7 @@ class BaseAlgorithm(ABC):
                 "id_algoritmo": self.id_algoritmo,
                 "updated_at": now_iso(),
                 "symbol": candle.get("symbol"),
-                # Legacy status keys are retained for existing dashboard clients.
+                # Se conservan las claves anteriores para los clientes del panel existentes.
                 "last_vela": {
                     key: candle.get(key)
                     for key in ("inicio", "open", "high", "low", "close", "num_ticks")
@@ -76,14 +76,14 @@ class BaseAlgorithm(ABC):
                 "last_signal_at": self.last_signal_at,
                 "model": self.extra_status(candles),
             })
-        except Exception as e:  # A status-file failure must not stop signal processing.
+        except Exception as e:  # Un fallo al guardar el estado no debe detener el procesamiento.
             self.log.error("Could not write algorithm status heartbeat: %s", e)
 
     def _prewarm(self, n: int) -> int:
-        """Load recent Kafka history without emitting signals.
+        """Carga mensajes recientes de Kafka sin emitir señales.
 
-        This lets a restarted worker resume after a short warm-up instead of
-        waiting for the full indicator history to arrive again.
+        Así, un proceso reiniciado puede continuar tras un calentamiento breve,
+        sin esperar de nuevo todo el historial que requieren los indicadores.
         """
         from confluent_kafka import Consumer, TopicPartition
         consumer = Consumer({
@@ -116,7 +116,7 @@ class BaseAlgorithm(ABC):
         return got
 
     def _publish_signal(self, candle: dict, result: dict) -> None:
-        """Publish a signal unless it repeats the previous direction."""
+        """Publica una señal, salvo que repita la dirección anterior."""
         if result["signal"] == self.last_signal:
             return
 
@@ -141,10 +141,10 @@ class BaseAlgorithm(ABC):
             self.log.error("Could not publish signal: %s", e)
 
     def process_candle(self, candle: dict) -> Optional[dict]:
-        """Process one candle and publish any resulting signal.
+        """Procesa una vela y publica la señal que se genere.
 
-        The returned dictionary is useful in unit tests; Kafka is only used
-        when a producer connection has been created.
+        El diccionario devuelto es útil en pruebas unitarias. Kafka solo se usa
+        si ya se creó una conexión con el productor.
         """
         self.buffer.append(candle)
         self.velas_received += 1
@@ -169,11 +169,11 @@ class BaseAlgorithm(ABC):
         return result
 
     def process_vela(self, vela: dict) -> Optional[dict]:
-        """Compatibility alias for callers that still use the former method name."""
+        """Alias de compatibilidad para código que aún usa el nombre anterior."""
         return self.process_candle(vela)
 
     def run(self) -> None:
-        """Run the Kafka consumer loop until interrupted."""
+        """Ejecuta el ciclo consumidor de Kafka hasta que se interrumpa."""
         create_topic_if_not_exists(TOPIC_SIGNALS)
 
         install_graceful_shutdown()

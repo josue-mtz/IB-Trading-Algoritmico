@@ -1,4 +1,4 @@
-"""Compatibility imports for the former Spanish technical-indicator module."""
+"""Importaciones compatibles con la ruta anterior del módulo de indicadores."""
 from src.algorithms.indicators import (
     detect_cross,
     ema_last,

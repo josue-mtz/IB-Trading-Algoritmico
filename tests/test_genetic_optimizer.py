@@ -1,4 +1,4 @@
-"""Offline unit tests for the genetic walk-forward parameter optimizer."""
+"""Pruebas unitarias locales del optimizador genético walk-forward."""
 import math
 
 import pandas as pd
@@ -83,4 +83,4 @@ def test_optimizer_is_reproducible_with_fixed_seed():
     assert first["candidate"] == second["candidate"]
     assert first["history"] == second["history"]
     assert first["seed"] == 123
-"""Offline unit tests for the genetic walk-forward parameter optimizer."""
+"""Pruebas unitarias locales del optimizador genético walk-forward."""

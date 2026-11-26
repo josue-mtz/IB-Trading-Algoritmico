@@ -1,6 +1,6 @@
-"""Start the local trading dashboard.
+"""Inicia el panel de control local de trading.
 
-Use ``--demo`` to display synthetic data without connecting to IB or Kafka.
+Usa ``--demo`` para mostrar datos sintéticos sin conectarse a IB ni a Kafka.
 """
 import argparse
 import os
@@ -26,7 +26,7 @@ def main() -> None:
 
     demo_dir = None
     if args.demo:
-        # Set this before importing config.settings, which reads RUNTIME_DIR at import time.
+        # Se establece antes de importar config.settings, que lee RUNTIME_DIR al cargarse.
         demo_dir = Path(tempfile.mkdtemp(prefix="fx_dashboard_demo_"))
         os.environ["RUNTIME_DIR"] = str(demo_dir)
 

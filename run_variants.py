@@ -1,4 +1,4 @@
-"""Compare all configured EMA variants using the same historical dataset."""
+"""Compara todas las variantes EMA con el mismo conjunto de datos históricos."""
 import json
 from datetime import datetime, timezone
 import pandas as pd
@@ -15,7 +15,7 @@ INITIAL_CAPITAL = 10000.0
 
 
 def main() -> None:
-    """Run each strategy on matching in-sample and out-of-sample periods."""
+    """Ejecuta cada estrategia sobre los mismos periodos IS y OOS."""
     df = get_or_download()
     if len(df) < 20_000:
         raise RuntimeError(f"Not enough historical bars: found {len(df)}.")
@@ -70,7 +70,7 @@ def main() -> None:
     with open(summary_root / "comparison.json", "w", encoding="utf-8") as f:
         json.dump(rows, f, indent=2)
 
-    # Print a compact comparison table to the terminal.
+    # Muestra una tabla comparativa resumida en la terminal.
     log.info("=" * 110)
     log.info("STRATEGY VARIANT COMPARISON")
     log.info("=" * 110)
@@ -87,7 +87,7 @@ def main() -> None:
         )
     log.info("=" * 110)
 
-    # This is a descriptive ranking, not a recommendation to trade live.
+    # Este orden es descriptivo y no constituye una recomendación para operar en vivo.
     winners = [r for r in rows if (r["oos_sharpe"] or 0) > 0]
     if winners:
         best = max(winners, key=lambda r: r["oos_sharpe"])

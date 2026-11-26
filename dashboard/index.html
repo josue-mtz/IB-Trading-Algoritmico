@@ -1,10 +1,9 @@
 <!doctype html>
-<!-- Local browser interface. Data and controls are served by dashboard/server.py. -->
-<html lang="en">
+<!-- Interfaz de navegador local. Los datos y los controles son proporcionados por dashboard/server.py. --><html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FX Algo Trader</title>
+<title>FX Trading Algorítmico</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0e14'/%3E%3Cpath d='M5 22l7-8 5 4 10-12' fill='none' stroke='%2326c281' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
 :root{
@@ -23,7 +22,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 var(--sans);
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 .up{color:var(--up)} .down{color:var(--down)} .muted{color:var(--muted)} .amber{color:var(--amber)}
 
-/* Demo and error banners */
+/* Banners de demostración y de error */
 .banner{display:none;padding:8px 16px;text-align:center;font-size:13px;font-weight:600}
 .banner.show{display:block}
 #demoBanner{background:var(--amber-bg);color:var(--amber);border-bottom:1px solid rgba(245,184,75,.3)}
@@ -59,7 +58,7 @@ select:focus-visible,button:focus-visible{outline:2px solid var(--blue);outline-
 .linkbtn{background:none;border:0;color:var(--muted);font:inherit;font-size:12px;text-decoration:underline;cursor:pointer;padding:4px}
 .linkbtn:hover{color:var(--down)}
 
-/* Sections and cards */
+/* Sections y cards */
 .sec{margin:22px 0 10px;display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 .sec h2{margin:0;font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);font-weight:700}
 .sec small{color:var(--faint);font-size:12px}
@@ -82,7 +81,7 @@ select:focus-visible,button:focus-visible{outline:2px solid var(--blue);outline-
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:6px}
 .legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
 
-/* Live strategy model */
+/* Modelo de estrategia en tiempo real */
 .model{grid-template-columns:minmax(0,2fr) minmax(260px,1fr)}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;align-content:start}
 .stat .l{font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--faint);font-weight:700}
@@ -91,7 +90,7 @@ select:focus-visible,button:focus-visible{outline:2px solid var(--blue);outline-
 .bar>i{display:block;height:100%;background:var(--blue);border-radius:6px;transition:width .4s}
 .span2{grid-column:1/-1}
 
-/* Data tables */
+/* Tabla de datos */
 .tabs{display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
 .tab{background:none;border:1px solid transparent;color:var(--muted);padding:6px 12px;border-radius:8px;font:600 13px var(--sans);cursor:pointer}
 .tab[aria-selected=true]{background:var(--panel-2);color:var(--text);border-color:var(--line-2)}
@@ -114,7 +113,7 @@ tr.open-row{background:linear-gradient(90deg,rgba(90,162,255,.09),transparent)}
 .emptyrow{padding:34px 10px;text-align:center;color:var(--faint);font:13px var(--sans)}
 .evt-detail{font-family:var(--sans);color:var(--muted);white-space:normal;max-width:420px}
 
-/* Service health indicators */
+/* Indicadores de salud del servicio */
 .health{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}
 .hchip{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:8px;background:var(--panel);border:1px solid var(--line);font-size:12px;color:var(--muted)}
 .hchip .dot{width:8px;height:8px}
@@ -208,11 +207,11 @@ tr.open-row{background:linear-gradient(90deg,rgba(90,162,255,.09),transparent)}
 const TOKEN = "__TOKEN__";
 const $ = (id) => document.getElementById(id);
 const SIGN_MINUS = "−";
-let S = null;            // Latest dashboard state.
+let S = null;           // Estado más reciente del panel
 let fetchedAt = 0;
 let range = "all", tab = "trades", shown = 25, busy = false;
 
-/* ---------- Number and date formatting ---------- */
+/* Formato de números y fechas */
 const nf = (d) => new Intl.NumberFormat("en-US", {minimumFractionDigits: d, maximumFractionDigits: d});
 function money(v, plus = true) {
   if (v == null || isNaN(v)) return "—";
@@ -248,7 +247,7 @@ function clock(iso) {
 function dayLabel(d) { const [y, m, dd] = d.split("-"); return `${dd}/${m}`; }
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 
-/* ---------- Lightweight charts drawn with SVG ---------- */
+/* Gráficos ligeros dibujados con SVG */
 function niceTicks(min, max, n = 4) {
   if (min === max) { min -= 1; max += 1; }
   const raw = (max - min) / n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
@@ -424,7 +423,7 @@ function tickUptime() {
   el.textContent = (d ? d + "d " : "") + [h, m, sec].map((x) => String(x).padStart(2, "0")).join(":");
 }
 
-// Avoid redrawing charts, which would hide an open tooltip, when data is unchanged.
+// Evita volver a dibujar los gráficos —lo cual ocultaría un tooltip abierto— cuando los datos no han cambiado
 function unchanged(el, key, force) {
   key += "|" + el.clientWidth;
   if (!force && el.dataset.sig === key) return true;
@@ -547,7 +546,7 @@ function render(s) {
   renderHeader(s); renderKpis(s); renderCharts(s); renderModel(s); renderTable(s); renderHealth(s);
 }
 
-/* ---------- API requests ---------- */
+/* Solicitudes a la API*/
 async function poll() {
   try {
     const r = await fetch("/api/state", {cache: "no-store"});

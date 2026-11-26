@@ -1,7 +1,7 @@
-"""Load or download historical one-minute foreign-exchange candles.
+"""Carga o descarga velas históricas de un minuto para el mercado de divisas.
 
-Interactive Brokers is the primary source. A local CSV is reused when
-available, avoiding a network request on repeat backtests.
+Interactive Brokers es la fuente principal. Si hay un archivo CSV local,
+se reutiliza para evitar nuevas solicitudes de red en backtests posteriores.
 """
 from datetime import datetime, timedelta, timezone
 
@@ -19,12 +19,12 @@ MAX_CHUNK_DAYS = 7
 
 
 def has_local_data() -> bool:
-    """Return whether the configured historical CSV is already present."""
+    """Indica si ya existe el archivo CSV histórico configurado."""
     return CSV_PATH.exists()
 
 
 def load_local_data() -> pd.DataFrame:
-    """Read, normalize, and sort the local historical CSV."""
+    """Lee, normaliza y ordena el archivo CSV histórico local."""
     log.info("Loading local historical data: %s", CSV_PATH)
     df = pd.read_csv(CSV_PATH)
     df["inicio"] = pd.to_datetime(df["inicio"], utc=True)
@@ -33,7 +33,7 @@ def load_local_data() -> pd.DataFrame:
 
 
 def download_from_ib(days: int = BACKTEST_DAYS, client_id: int = 99) -> pd.DataFrame:
-    """Download one-minute bars from IB in chunks and return the shared schema."""
+    """Descarga barras de un minuto desde IB por bloques y devuelve el esquema común."""
     if days < 1:
         raise ValueError("days must be at least 1.")
 
@@ -75,7 +75,7 @@ def download_from_ib(days: int = BACKTEST_DAYS, client_id: int = 99) -> pd.DataF
         df = df.rename(columns={"date": "inicio", "volume": "num_ticks"})
         df["inicio"] = pd.to_datetime(df["inicio"], utc=True)
         df["symbol"] = SYMBOL
-        # Use the provider's volume field as the tick-count proxy when available.
+        # Usa el volumen del proveedor como aproximación al número de ticks si está disponible.
         if "num_ticks" not in df.columns:
             df["num_ticks"] = 0
         df = (
@@ -96,13 +96,13 @@ def download_from_ib(days: int = BACKTEST_DAYS, client_id: int = 99) -> pd.DataF
 
 
 def save_data(df: pd.DataFrame) -> None:
-    """Save historical bars in the configured CSV location."""
+    """Guarda las barras históricas en la ubicación CSV configurada."""
     df.to_csv(CSV_PATH, index=False)
     log.info("Historical data saved to %s", CSV_PATH)
 
 
 def get_or_download(days: int = BACKTEST_DAYS, force: bool = False) -> pd.DataFrame:
-    """Reuse the local CSV or download and save a fresh copy."""
+    """Reutiliza el CSV local o descarga y guarda una copia nueva."""
     if has_local_data() and not force:
         return load_local_data()
     df = download_from_ib(days=days)

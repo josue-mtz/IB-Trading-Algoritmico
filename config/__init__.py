@@ -1,1 +1,1 @@
-"""Application configuration package."""
+"""Paquete de configuración de la aplicación"""
