@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Carga el .env desde la raíz del proyecto
 env_path = Path(__file__).parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
@@ -32,6 +31,14 @@ LOGS_DIR.mkdir(exist_ok=True)
 EMA_FAST = int(os.getenv("EMA_FAST", 9))
 EMA_SLOW = int(os.getenv("EMA_SLOW", 21))
 
+# Filtros de estrategia
+USE_RSI_FILTER = os.getenv("USE_RSI_FILTER", "false").lower() == "true"
+RSI_PERIOD = int(os.getenv("RSI_PERIOD", 14))
+RSI_OVERBOUGHT = float(os.getenv("RSI_OVERBOUGHT", 70))
+RSI_OVERSOLD = float(os.getenv("RSI_OVERSOLD", 30))
+USE_TREND_FILTER = os.getenv("USE_TREND_FILTER", "false").lower() == "true"
+EMA_TREND_PERIOD = int(os.getenv("EMA_TREND_PERIOD", 50))
+
 # Ejecutor y control de riesgo
 RISK_TRADE_SIZE = int(os.getenv("RISK_TRADE_SIZE", 10000))
 RISK_STOP_LOSS_PIPS = float(os.getenv("RISK_STOP_LOSS_PIPS", 10))
@@ -52,3 +59,18 @@ DATA_DIR = BASE_DIR / "data" / "historical"
 REPORTS_DIR = BASE_DIR / "reports"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+# ---------- Runtime / Dashboard (Fase 7) ----------
+# Carpeta de estado compartido entre dashboard, algoritmo y ejecutor.
+RUNTIME_DIR = Path(os.getenv("RUNTIME_DIR", BASE_DIR / "data" / "runtime"))
+RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+
+DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
+DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", 8050))
+# Si es true, el botón Iniciar también lanza run_producer.py (ticks IB -> Kafka).
+# Ponlo en false si ya lo corres tú en otra terminal.
+DASHBOARD_MANAGE_PRODUCER = os.getenv("DASHBOARD_MANAGE_PRODUCER", "true").lower() == "true"
+# Zona horaria para agrupar "ganancia por día" (por defecto la del sistema).
+DASHBOARD_TZ = os.getenv("DASHBOARD_TZ", "")
+# Algoritmo por defecto del dashboard (ver src/algorithms/variants.py).
+DEFAULT_VARIANT = os.getenv("DEFAULT_VARIANT", "v3")
