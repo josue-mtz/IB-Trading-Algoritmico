@@ -53,8 +53,7 @@ def max_drawdown(equity_curve: List[float]) -> float:
 
 def deflated_sharpe(sharpe_obs: float, n_trials: int, n_obs: int,
                      skew: float = 0.0, kurt: float = 3.0) -> float:
-    """Deflated Sharpe Ratio (Bailey & López de Prado).
-    Penaliza el Sharpe por el número de pruebas hechas."""
+    """Approximate Deflated Sharpe probability for a per-observation Sharpe."""
     if n_obs < 2 or n_trials < 1:
         return 0.0
     from math import sqrt, log, exp, pi

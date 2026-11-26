@@ -7,7 +7,7 @@ Reglas anti-look-ahead:
   - Si SL y TP se tocan en la misma vela, se asume SL.
 """
 from dataclasses import dataclass, asdict
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 import pandas as pd
 
 from config.settings import (
@@ -98,7 +98,11 @@ class BacktestEngine:
                     return False
         return True
 
-    def run(self, df: pd.DataFrame) -> Tuple[List[Trade], List[float]]:
+    def run(
+        self,
+        df: pd.DataFrame,
+        start_index: Optional[int] = None,
+    ) -> Tuple[List[Trade], List[float]]:
         min_warmup = self._min_warmup()
         if len(df) < min_warmup:
             log.warning(f"Pocos datos ({len(df)} velas). Mínimo: {min_warmup}.")
@@ -121,7 +125,10 @@ class BacktestEngine:
         spread_half = (self.spread_pips / 2) * PIP_SIZE
         slip = self.slippage_pips * PIP_SIZE
 
-        i = min_warmup
+        first_signal_index = min_warmup if start_index is None else start_index
+        i = max(min_warmup, first_signal_index)
+        if i >= len(df) - 1:
+            return [], [self.initial_capital]
         while i < len(df) - 1:
             signal = detect_cross(fast_s[i - 1], slow_s[i - 1], fast_s[i], slow_s[i])
             if signal is None or not self._passes_filters(signal, i, closes, rsi_s, trend_s):
