@@ -1,3 +1,4 @@
+"""Kafka integration test for publishing signals from synthetic candle data."""
 import json
 import time
 import uuid
@@ -33,7 +34,7 @@ def test_synthetic_buy_reaches_kafka():
         while not consumer.assignment():
             consumer.poll(timeout=0.1)
             if time.monotonic() >= assignment_deadline:
-                raise AssertionError("El consumidor de señales no recibió partición.")
+                raise AssertionError("The signal consumer did not receive a partition.")
 
         prices = [1.0800] * 25
         prices += [1.0795, 1.0790, 1.0785]
@@ -55,7 +56,7 @@ def test_synthetic_buy_reaches_kafka():
                 signals.append(result["signal"])
 
         remaining = algorithm.producer.flush(timeout=10)
-        assert remaining == 0, f"Quedaron {remaining} señales sin entregar."
+        assert remaining == 0, f"{remaining} signals remain undelivered."
 
         messages = []
         deadline = time.monotonic() + 10
@@ -64,14 +65,14 @@ def test_synthetic_buy_reaches_kafka():
             if message is None:
                 continue
             if message.error():
-                raise AssertionError(f"Error leyendo señal de Kafka: {message.error()}")
+                raise AssertionError(f"Error reading a Kafka signal: {message.error()}")
 
             payload = json.loads(message.value().decode("utf-8"))
             if payload.get("id_algoritmo") == test_id:
                 messages.append(payload)
 
-        assert signals == ["SELL", "BUY"], f"Secuencia sintética inesperada: {signals}"
-        assert len(messages) == 2, f"Se recibieron {len(messages)} señales del algoritmo de prueba."
+        assert signals == ["SELL", "BUY"], f"Unexpected synthetic sequence: {signals}"
+        assert len(messages) == 2, f"Received {len(messages)} test strategy signals."
         assert [message["signal"] for message in messages] == signals
         assert sum(message["signal"] == "BUY" for message in messages) == 1
 
@@ -83,7 +84,7 @@ def test_synthetic_buy_reaches_kafka():
             "timestamp",
         }
         for message in messages:
-            assert set(message) == expected_fields, f"Campos inesperados: {set(message)}"
+            assert set(message) == expected_fields, f"Unexpected fields: {set(message)}"
             assert message["symbol"] == "EURUSD"
             assert isinstance(message["precio_referencia"], (int, float))
             assert message["timestamp"].endswith("Z")

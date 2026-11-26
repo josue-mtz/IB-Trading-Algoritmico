@@ -1,0 +1,1 @@
+"""Historical strategy simulation, optimization, and performance metrics."""

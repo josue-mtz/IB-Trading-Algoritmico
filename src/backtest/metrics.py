@@ -1,15 +1,17 @@
-"""Métricas de backtesting. Todas puras, testeables sin red."""
+"""Pure backtest metrics that can be calculated without network services."""
 from typing import List
 import numpy as np
 
 
 def winrate(trades: List[dict]) -> float:
+    """Return the fraction of closed trades whose net profit is positive."""
     if not trades:
         return 0.0
     return sum(1 for t in trades if t["pnl_neto"] > 0) / len(trades)
 
 
 def profit_factor(trades: List[dict]) -> float:
+    """Return gross profit divided by gross loss."""
     gp = sum(t["pnl_neto"] for t in trades if t["pnl_neto"] > 0)
     gl = abs(sum(t["pnl_neto"] for t in trades if t["pnl_neto"] < 0))
     if gl == 0:
@@ -18,13 +20,14 @@ def profit_factor(trades: List[dict]) -> float:
 
 
 def expectancy(trades: List[dict]) -> float:
+    """Return average net profit per trade."""
     if not trades:
         return 0.0
     return sum(t["pnl_neto"] for t in trades) / len(trades)
 
 
 def sharpe(daily_returns: List[float], risk_free_annual: float = 0.0) -> float:
-    """Sharpe anualizado a partir de retornos diarios."""
+    """Return the annualized Sharpe ratio calculated from daily returns."""
     if len(daily_returns) < 2:
         return 0.0
     r = np.array(daily_returns, dtype=float)
@@ -36,7 +39,7 @@ def sharpe(daily_returns: List[float], risk_free_annual: float = 0.0) -> float:
 
 
 def max_drawdown(equity_curve: List[float]) -> float:
-    """Max Drawdown como fracción (0.15 = 15%)."""
+    """Return maximum peak-to-trough drawdown as a fraction."""
     if not equity_curve:
         return 0.0
     peak = equity_curve[0]
@@ -56,20 +59,20 @@ def deflated_sharpe(sharpe_obs: float, n_trials: int, n_obs: int,
     """Approximate Deflated Sharpe probability for a per-observation Sharpe."""
     if n_obs < 2 or n_trials < 1:
         return 0.0
-    from math import sqrt, log, exp, pi
+    from math import sqrt, log
     from statistics import NormalDist
     e_max = sqrt(2 * log(n_trials)) if n_trials > 1 else 0.0
-    # varianza del estimador de Sharpe
+    # Estimate the variance of the observed Sharpe ratio.
     var_sr = (1 - skew * sharpe_obs + ((kurt - 1) / 4) * sharpe_obs ** 2) / (n_obs - 1)
     if var_sr <= 0:
         return 0.0
-    # probabilidad de que el Sharpe observado supere el máximo esperado por azar
+    # Estimate the probability that the observed Sharpe exceeds the trial-adjusted threshold.
     z = (sharpe_obs - e_max) / sqrt(var_sr)
     return float(NormalDist().cdf(z))
 
 
 def compute_daily_returns(trades: List[dict], initial_capital: float = 10000.0) -> List[float]:
-    """Agrupa P&L por día (usando exit_time) y lo normaliza por capital inicial."""
+    """Group net profit by exit date and normalize it by initial capital."""
     if not trades:
         return []
     by_day = {}
@@ -81,6 +84,7 @@ def compute_daily_returns(trades: List[dict], initial_capital: float = 10000.0) 
 
 def all_metrics(trades: List[dict], equity_curve: List[float],
                  daily_returns: List[float], initial_capital: float = 10000.0) -> dict:
+    """Return all summary metrics used in backtest reports."""
     return {
         "num_trades": len(trades),
         "winrate": round(winrate(trades), 4),

@@ -1,10 +1,11 @@
 services:
   kafka:
-    image: apache/kafka:4.3.1  # Versión reciente y estable
+    image: apache/kafka:4.3.1
     container_name: kafka
     ports:
       - "9092:9092"
 
+  # Keep the existing service key so current Compose-managed installations update in place.
   spark-velas:
     build:
       context: .
@@ -15,5 +16,5 @@ services:
     environment:
       KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}
       TOPIC_TICKS: ${TOPIC_TICKS:-ticks}
-      TOPIC_VELAS: ${TOPIC_VELAS:-velas}
+      TOPIC_CANDLES: ${TOPIC_CANDLES:-${TOPIC_VELAS:-velas}}
       WINDOW_SECONDS: ${WINDOW_SECONDS:-60}

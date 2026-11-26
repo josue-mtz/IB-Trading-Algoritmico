@@ -1,0 +1,1 @@
+"""Shared logging and Kafka helpers."""

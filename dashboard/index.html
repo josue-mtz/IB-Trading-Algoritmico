@@ -1,5 +1,6 @@
 <!doctype html>
-<html lang="es">
+<!-- Local browser interface. Data and controls are served by dashboard/server.py. -->
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -22,7 +23,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 var(--sans);
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 .up{color:var(--up)} .down{color:var(--down)} .muted{color:var(--muted)} .amber{color:var(--amber)}
 
-/* Banner demo / errores */
+/* Demo and error banners */
 .banner{display:none;padding:8px 16px;text-align:center;font-size:13px;font-weight:600}
 .banner.show{display:block}
 #demoBanner{background:var(--amber-bg);color:var(--amber);border-bottom:1px solid rgba(245,184,75,.3)}
@@ -58,7 +59,7 @@ select:focus-visible,button:focus-visible{outline:2px solid var(--blue);outline-
 .linkbtn{background:none;border:0;color:var(--muted);font:inherit;font-size:12px;text-decoration:underline;cursor:pointer;padding:4px}
 .linkbtn:hover{color:var(--down)}
 
-/* Secciones y tarjetas */
+/* Sections and cards */
 .sec{margin:22px 0 10px;display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 .sec h2{margin:0;font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);font-weight:700}
 .sec small{color:var(--faint);font-size:12px}
@@ -81,7 +82,7 @@ select:focus-visible,button:focus-visible{outline:2px solid var(--blue);outline-
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:6px}
 .legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
 
-/* Modelo en vivo */
+/* Live strategy model */
 .model{grid-template-columns:minmax(0,2fr) minmax(260px,1fr)}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;align-content:start}
 .stat .l{font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--faint);font-weight:700}
@@ -90,7 +91,7 @@ select:focus-visible,button:focus-visible{outline:2px solid var(--blue);outline-
 .bar>i{display:block;height:100%;background:var(--blue);border-radius:6px;transition:width .4s}
 .span2{grid-column:1/-1}
 
-/* Tabla */
+/* Data tables */
 .tabs{display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
 .tab{background:none;border:1px solid transparent;color:var(--muted);padding:6px 12px;border-radius:8px;font:600 13px var(--sans);cursor:pointer}
 .tab[aria-selected=true]{background:var(--panel-2);color:var(--text);border-color:var(--line-2)}
@@ -113,7 +114,7 @@ tr.open-row{background:linear-gradient(90deg,rgba(90,162,255,.09),transparent)}
 .emptyrow{padding:34px 10px;text-align:center;color:var(--faint);font:13px var(--sans)}
 .evt-detail{font-family:var(--sans);color:var(--muted);white-space:normal;max-width:420px}
 
-/* Pie de salud */
+/* Service health indicators */
 .health{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}
 .hchip{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:8px;background:var(--panel);border:1px solid var(--line);font-size:12px;color:var(--muted)}
 .hchip .dot{width:8px;height:8px}
@@ -137,8 +138,8 @@ tr.open-row{background:linear-gradient(90deg,rgba(90,162,255,.09),transparent)}
 </style>
 </head>
 <body>
-<div id="demoBanner" class="banner">MODO DEMO · datos sintéticos de demostración, no son operaciones reales</div>
-<div id="errBanner" class="banner">Sin conexión con el servidor del dashboard. Reintentando…</div>
+<div id="demoBanner" class="banner">DEMO MODE · synthetic sample data; no real orders are shown</div>
+<div id="errBanner" class="banner">Dashboard server connection lost. Retrying…</div>
 
 <div class="wrap">
   <header>
@@ -146,36 +147,36 @@ tr.open-row{background:linear-gradient(90deg,rgba(90,162,255,.09),transparent)}
       <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#161c28"/><path d="M5 22l7-8 5 4 10-12" fill="none" stroke="#2fd08a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <div>
         <h1>FX Algo Trader · <span class="sym" id="hSymbol">EURUSD</span></h1>
-        <span class="tag paper" id="hAccount">Cuenta demo (paper)</span>
+        <span class="tag paper" id="hAccount">Paper account</span>
       </div>
     </div>
 
     <div class="algo">
-      <label for="variant">Algoritmo</label>
+      <label for="variant">Strategy</label>
       <select id="variant" aria-describedby="btest"></select>
       <div class="btest" id="btest"></div>
     </div>
 
     <div class="ctl">
       <span class="pill" id="pill" role="status" aria-live="polite"><span class="dot"></span><span id="pillText">—</span></span>
-      <button class="toggle" id="toggle" type="button">▶ Iniciar</button>
+      <button class="toggle" id="toggle" type="button">▶ Start</button>
       <p class="hint" id="hint"></p>
     </div>
   </header>
 
-  <div class="sec"><h2>Hoy</h2><small id="todayLabel"></small></div>
+  <div class="sec"><h2>Today</h2><small id="todayLabel"></small></div>
   <div class="grid kpis" id="kpiToday"></div>
 
-  <div class="sec"><h2>Acumulado desde que corre</h2><small id="runLabel"></small></div>
+  <div class="sec"><h2>Since this run started</h2><small id="runLabel"></small></div>
   <div class="grid kpis" id="kpiAll"></div>
 
-  <div class="sec"><h2>Rendimiento</h2></div>
+  <div class="sec"><h2>Performance</h2></div>
   <div class="grid two">
-    <div class="card"><h3>P&amp;L acumulado</h3><p class="sub">Suma de operaciones cerradas, en USD</p><div class="chart" id="chEquity" style="height:240px"></div></div>
-    <div class="card"><h3>Ganancia / pérdida por día</h3><p class="sub">Operaciones cerradas por día, en USD</p><div class="chart" id="chDaily" style="height:240px"></div></div>
+    <div class="card"><h3>Cumulative P&amp;L</h3><p class="sub">Sum of closed trades, in USD</p><div class="chart" id="chEquity" style="height:240px"></div></div>
+    <div class="card"><h3>Daily profit / loss</h3><p class="sub">Closed trades grouped by day, in USD</p><div class="chart" id="chDaily" style="height:240px"></div></div>
   </div>
 
-  <div class="sec"><h2>Modelo en vivo</h2><small id="modelLabel"></small></div>
+  <div class="sec"><h2>Live strategy</h2><small id="modelLabel"></small></div>
   <div class="grid model">
     <div class="card">
       <div class="legend" id="priceLegend"></div>
@@ -184,22 +185,22 @@ tr.open-row{background:linear-gradient(90deg,rgba(90,162,255,.09),transparent)}
     <div class="card"><div class="stats" id="modelStats"></div></div>
   </div>
 
-  <div class="sec"><h2>Operaciones</h2></div>
+  <div class="sec"><h2>Trades</h2></div>
   <div class="card">
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" id="tabTrades" aria-selected="true">Historial</button>
-      <button class="tab" role="tab" id="tabEvents" aria-selected="false">Señales y eventos</button>
-      <div class="seg" id="seg" role="group" aria-label="Rango del historial">
-        <button type="button" data-range="all" aria-pressed="true">Todo</button>
-        <button type="button" data-range="today" aria-pressed="false">Hoy</button>
+      <button class="tab" role="tab" id="tabTrades" aria-selected="true">History</button>
+      <button class="tab" role="tab" id="tabEvents" aria-selected="false">Signals and events</button>
+      <div class="seg" id="seg" role="group" aria-label="History date range">
+        <button type="button" data-range="all" aria-pressed="true">All</button>
+        <button type="button" data-range="today" aria-pressed="false">Today</button>
       </div>
     </div>
     <div class="tbl-wrap"><table id="tbl"></table></div>
-    <button class="more" id="more" type="button" hidden>Mostrar más</button>
+    <button class="more" id="more" type="button" hidden>Show more</button>
   </div>
 
   <div class="health" id="health"></div>
-  <p style="text-align:right;margin:8px 0 0"><button class="linkbtn" id="stopAll" type="button">Apagar workers</button></p>
+  <p style="text-align:right;margin:8px 0 0"><button class="linkbtn" id="stopAll" type="button">Stop workers</button></p>
 </div>
 <div class="toast" id="toast" role="alert"></div>
 
@@ -207,12 +208,12 @@ tr.open-row{background:linear-gradient(90deg,rgba(90,162,255,.09),transparent)}
 const TOKEN = "__TOKEN__";
 const $ = (id) => document.getElementById(id);
 const SIGN_MINUS = "−";
-let S = null;            // último estado
+let S = null;            // Latest dashboard state.
 let fetchedAt = 0;
 let range = "all", tab = "trades", shown = 25, busy = false;
 
-/* ---------- formato ---------- */
-const nf = (d) => new Intl.NumberFormat("es-MX", {minimumFractionDigits: d, maximumFractionDigits: d});
+/* ---------- Number and date formatting ---------- */
+const nf = (d) => new Intl.NumberFormat("en-US", {minimumFractionDigits: d, maximumFractionDigits: d});
 function money(v, plus = true) {
   if (v == null || isNaN(v)) return "—";
   const s = nf(2).format(Math.abs(v));
@@ -233,21 +234,21 @@ function dur(s) {
 }
 function ago(s) {
   if (s == null) return "—";
-  if (s < 90) return `hace ${Math.round(s)}s`;
-  if (s < 5400) return `hace ${Math.round(s / 60)} min`;
-  return `hace ${nf(1).format(s / 3600)} h`;
+  if (s < 90) return `${Math.round(s)}s ago`;
+  if (s < 5400) return `${Math.round(s / 60)} min ago`;
+  return `${nf(1).format(s / 3600)}h ago`;
 }
 function when(iso) {
   if (!iso) return "—";
-  return new Date(iso).toLocaleString("es-MX", {day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: false});
+  return new Date(iso).toLocaleString("en-US", {month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false});
 }
 function clock(iso) {
-  return iso ? new Date(iso).toLocaleTimeString("es-MX", {hour: "2-digit", minute: "2-digit", hour12: false}) : "";
+  return iso ? new Date(iso).toLocaleTimeString("en-US", {hour: "2-digit", minute: "2-digit", hour12: false}) : "";
 }
 function dayLabel(d) { const [y, m, dd] = d.split("-"); return `${dd}/${m}`; }
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 
-/* ---------- gráficas (SVG a mano, sin librerías) ---------- */
+/* ---------- Lightweight charts drawn with SVG ---------- */
 function niceTicks(min, max, n = 4) {
   if (min === max) { min -= 1; max += 1; }
   const raw = (max - min) / n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
@@ -343,7 +344,7 @@ function barChart(el, {items, yFmt, tipFmt}) {
   });
 }
 
-/* ---------- render ---------- */
+/* ---------- Page rendering ---------- */
 function kpi(label, value, sub, valCls = "", big = false) {
   return `<div class="card kpi ${big ? "big" : ""}"><div class="l">${esc(label)}</div><div class="v ${valCls}">${value}</div><div class="s">${sub}</div></div>`;
 }
@@ -353,7 +354,7 @@ function renderHeader(s) {
   $("demoBanner").classList.toggle("show", !!s.demo);
   $("hSymbol").textContent = (s.exec && s.exec.symbol) || "EURUSD";
   const acc = (s.health.accounts || [])[0];
-  $("hAccount").textContent = acc ? `Cuenta demo · ${acc}` : "Cuenta demo (paper)";
+  $("hAccount").textContent = acc ? `Paper account · ${acc}` : "Paper account";
 
   const sel = $("variant");
   if (sel.dataset.built !== "1") {
@@ -366,53 +367,53 @@ function renderHeader(s) {
   const b = v && v.backtest;
   if (b) {
     const weak = (b.is_pf != null && b.is_pf < 1) || (b.oos_trades != null && b.oos_trades < 100);
-    $("btest").innerHTML = `Backtest · <b>IS</b> PF ${nf(2).format(b.is_pf)} (${money(b.is_pnl_usd)}, ${b.is_trades} ops) · <b>OOS</b> PF ${nf(2).format(b.oos_pf)} (${money(b.oos_pnl_usd)}, ${b.oos_trades} ops)` +
-      (weak ? `<br><span class="warnchip">Evidencia débil: ${b.is_pf < 1 ? "pierde en el periodo de entrenamiento" : ""}${b.is_pf < 1 && b.oos_trades < 100 ? " y " : ""}${b.oos_trades < 100 ? "pocas operaciones OOS" : ""}. Solo demo.</span>` : "");
+    $("btest").innerHTML = `Backtest · <b>IS</b> PF ${nf(2).format(b.is_pf)} (${money(b.is_pnl_usd)}, ${b.is_trades} trades) · <b>OOS</b> PF ${nf(2).format(b.oos_pf)} (${money(b.oos_pnl_usd)}, ${b.oos_trades} trades)` +
+      (weak ? `<br><span class="warnchip">Limited evidence: ${b.is_pf < 1 ? "loss during training" : ""}${b.is_pf < 1 && b.oos_trades < 100 ? " and " : ""}${b.oos_trades < 100 ? "few out-of-sample trades" : ""}. Paper trading only.</span>` : "");
   } else {
-    $("btest").textContent = "Sin reporte de backtest en /reports.";
+    $("btest").textContent = "No backtest report found in /reports.";
   }
 
   const st = s.state;
   const pill = $("pill");
   pill.className = "pill " + st;
-  $("pillText").textContent = {running: "OPERANDO", paused: "PAUSADO", stopped: "DETENIDO", degraded: "WORKER CAÍDO"}[st];
+  $("pillText").textContent = {running: "RUNNING", paused: "PAUSED", stopped: "STOPPED", degraded: "WORKER ISSUE"}[st];
   const btn = $("toggle");
   const enabled = s.control.trading_enabled;
   const ico = (d) => `<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" style="margin-right:8px;vertical-align:-1px" fill="currentColor">${d}</svg>`;
-  btn.innerHTML = busy ? "…" : enabled ? ico('<rect x="1.5" y="1" width="3.2" height="10" rx="1"/><rect x="7.3" y="1" width="3.2" height="10" rx="1"/>') + "Pausar" : ico('<path d="M2 1l9 5-9 5z"/>') + "Iniciar";
+  btn.innerHTML = busy ? "…" : enabled ? ico('<rect x="1.5" y="1" width="3.2" height="10" rx="1"/><rect x="7.3" y="1" width="3.2" height="10" rx="1"/>') + "Pause" : ico('<path d="M2 1l9 5-9 5z"/>') + "Start";
   btn.classList.toggle("pause", enabled);
   btn.disabled = busy;
   $("hint").textContent = {
-    running: "Operando: el ejecutor abre y cierra operaciones con cada señal del algoritmo.",
-    paused: "Pausado: no se abren operaciones nuevas. Las posiciones abiertas conservan su SL/TP en IB y los workers siguen calientes.",
-    stopped: "Iniciar lanza el productor IB, el algoritmo y el ejecutor. Kafka, Spark e IB Gateway deben estar corriendo.",
-    degraded: "El trading está activado pero falta un worker (ver abajo). Pulsa Pausar y luego Iniciar para relanzarlos.",
+    running: "Running: the executor can open and close trades when the strategy emits a signal.",
+    paused: "Paused: no new trades are opened. IB keeps existing stop-loss and take-profit orders active; workers remain ready.",
+    stopped: "Start launches the IB producer, strategy, and executor. Kafka, Spark, and IB Gateway must already be running.",
+    degraded: "Trading is enabled, but a worker is missing. Pause and then start again to relaunch workers.",
   }[st];
   $("stopAll").style.display = Object.values(s.workers).some((w) => w.alive) ? "" : "none";
 }
 
 function renderKpis(s) {
   const t = s.stats.today, o = s.stats.overall, open = s.open[0];
-  $("todayLabel").textContent = `${dayLabel(s.stats.today_date)} · zona ${s.tz}`;
+  $("todayLabel").textContent = `${dayLabel(s.stats.today_date)} · ${s.tz}`;
   const bal = s.exec && s.exec.net_liquidation;
   $("kpiToday").innerHTML =
-    kpi("P&L de hoy", arrow(t.pnl) + money(t.pnl), `${t.trades} operaciones · ${t.wins} ganadas / ${t.losses} perdidas`, cls(t.pnl), true) +
-    kpi("Win rate hoy", pct(t.winrate), t.trades ? `${pips(t.pips)} pips netos` : "sin operaciones hoy") +
+    kpi("Today's P&L", arrow(t.pnl) + money(t.pnl), `${t.trades} trades · ${t.wins} wins / ${t.losses} losses`, cls(t.pnl), true) +
+    kpi("Today's win rate", pct(t.winrate), t.trades ? `${pips(t.pips)} net pips` : "no trades today") +
     (open
-      ? kpi("Posición abierta", open.pnl != null ? arrow(open.pnl) + money(open.pnl) : "—",
+      ? kpi("Open position", open.pnl != null ? arrow(open.pnl) + money(open.pnl) : "—",
           `<span class="chip ${open.side === "BUY" ? "buy" : "sell"}">${open.side}</span> ${nf(0).format(open.qty)} @ ${px(open.entry_price)}${open.pips != null ? " · " + pips(open.pips) + " pips" : ""}`, cls(open.pnl))
-      : kpi("Posición abierta", "—", "sin posición · esperando señal")) +
-    kpi("Balance de cuenta", bal != null ? "$" + nf(2).format(bal) : "—", bal != null ? "valor neto de liquidación" : "el ejecutor aún no reporta");
+      : kpi("Open position", "—", "no open position · waiting for a signal")) +
+    kpi("Account balance", bal != null ? "$" + nf(2).format(bal) : "—", bal != null ? "net liquidation value" : "not yet reported by the executor");
 
-  $("runLabel").textContent = s.control.first_started_at ? `desde ${when(s.control.first_started_at)}` : "aún no se ha iniciado";
+  $("runLabel").textContent = s.control.first_started_at ? `since ${when(s.control.first_started_at)}` : "not started yet";
   const bd = o.best_day, wd = o.worst_day;
   $("kpiAll").innerHTML =
-    kpi("P&L total", arrow(o.pnl) + money(o.pnl), `${o.trades} operaciones · ${o.days_traded} días`, cls(o.pnl), true) +
-    kpi("Promedio por día", money(o.avg_day), bd ? `mejor ${money(bd.pnl)} (${dayLabel(bd.date)}) · peor ${money(wd.pnl)} (${dayLabel(wd.date)})` : "—", cls(o.avg_day)) +
-    kpi("Win rate", pct(o.winrate), o.trades ? `ganancia media ${money(o.avg_win)} · pérdida media ${money(o.avg_loss)}` : "—") +
-    kpi("Profit factor", pfText(o), o.expectancy != null ? `expectativa ${money(o.expectancy)} por operación` : "—") +
-    kpi("Máx. drawdown", o.trades ? "−$" + nf(2).format(o.max_drawdown) : "—", o.streak ? `racha actual: ${Math.abs(o.streak)} ${o.streak > 0 ? "ganadas" : "perdidas"}` : "pico a valle del P&L acumulado") +
-    `<div class="card kpi"><div class="l">Tiempo corriendo</div><div class="v" id="uptime">—</div><div class="s">solo cuenta el tiempo activado (sin pausas)</div></div>`;
+    kpi("Total P&L", arrow(o.pnl) + money(o.pnl), `${o.trades} trades · ${o.days_traded} days`, cls(o.pnl), true) +
+    kpi("Daily average", money(o.avg_day), bd ? `best ${money(bd.pnl)} (${dayLabel(bd.date)}) · worst ${money(wd.pnl)} (${dayLabel(wd.date)})` : "—", cls(o.avg_day)) +
+    kpi("Win rate", pct(o.winrate), o.trades ? `average win ${money(o.avg_win)} · average loss ${money(o.avg_loss)}` : "—") +
+    kpi("Profit factor", pfText(o), o.expectancy != null ? `expected ${money(o.expectancy)} per trade` : "—") +
+    kpi("Max drawdown", o.trades ? "−$" + nf(2).format(o.max_drawdown) : "—", o.streak ? `current streak: ${Math.abs(o.streak)} ${o.streak > 0 ? "wins" : "losses"}` : "peak-to-trough cumulative P&L") +
+    `<div class="card kpi"><div class="l">Active time</div><div class="v" id="uptime">—</div><div class="s">paused periods are excluded</div></div>`;
   tickUptime();
 }
 function tickUptime() {
@@ -423,7 +424,7 @@ function tickUptime() {
   el.textContent = (d ? d + "d " : "") + [h, m, sec].map((x) => String(x).padStart(2, "0")).join(":");
 }
 
-// Evita redibujar (y perder el tooltip) si los datos no cambiaron desde el último sondeo.
+// Avoid redrawing charts, which would hide an open tooltip, when data is unchanged.
 function unchanged(el, key, force) {
   key += "|" + el.clientWidth;
   if (!force && el.dataset.sig === key) return true;
@@ -432,24 +433,24 @@ function unchanged(el, key, force) {
 function renderCharts(s, force) {
   const eq = s.stats.equity;
   if (!unchanged($("chEquity"), JSON.stringify(eq), force))
-  if (!eq.length) emptyChart($("chEquity"), "Aún no hay operaciones cerradas");
+  if (!eq.length) emptyChart($("chEquity"), "No closed trades yet.");
   else {
     const vals = [0, ...eq.map((e) => e.pnl)];
     const last = vals[vals.length - 1];
     lineChart($("chEquity"), {
       series: [{color: last >= 0 ? "#2fd08a" : "#ff6b78", vals}],
-      labels: ["inicio", ...eq.map((e) => when(e.t).split(",")[0])],
+      labels: ["Start", ...eq.map((e) => when(e.t).split(",")[0])],
       area: true, zero: true, yFmt: (v) => money(v, false),
-      tipFmt: (i) => i === 0 ? "<b>Inicio</b>" : `<b>Operación #${i}</b><div class="r"><span class="muted">Cierre</span><span>${when(eq[i - 1].t)}</span></div><div class="r"><span class="muted">Acumulado</span><span class="num ${cls(vals[i])}">${money(vals[i])}</span></div>`,
+      tipFmt: (i) => i === 0 ? "<b>Start</b>" : `<b>Trade #${i}</b><div class="r"><span class="muted">Closed</span><span>${when(eq[i - 1].t)}</span></div><div class="r"><span class="muted">Cumulative</span><span class="num ${cls(vals[i])}">${money(vals[i])}</span></div>`,
     });
   }
   const days = s.stats.daily.slice(-30);
   if (unchanged($("chDaily"), JSON.stringify(days), force)) return;
-  if (!days.length) emptyChart($("chDaily"), "Aún no hay días con operaciones");
+  if (!days.length) emptyChart($("chDaily"), "No trading days yet.");
   else barChart($("chDaily"), {
     items: days.map((d) => ({label: dayLabel(d.date), value: d.pnl, ...d})),
     yFmt: (v) => money(v, false),
-    tipFmt: (d) => `<b>${dayLabel(d.date)}</b><div class="r"><span class="muted">P&amp;L</span><span class="num ${cls(d.pnl)}">${money(d.pnl)}</span></div><div class="r"><span class="muted">Operaciones</span><span class="num">${d.trades} (${d.wins} ganadas)</span></div>`,
+    tipFmt: (d) => `<b>${dayLabel(d.date)}</b><div class="r"><span class="muted">P&amp;L</span><span class="num ${cls(d.pnl)}">${money(d.pnl)}</span></div><div class="r"><span class="muted">Trades</span><span class="num">${d.trades} (${d.wins} wins)</span></div>`,
   });
 }
 
@@ -457,19 +458,19 @@ function renderModel(s, force) {
   const m = s.model || {}, mod = m.model || {}, ex = s.exec || {};
   const series = mod.series || [];
   const p = mod.params || {};
-  $("modelLabel").textContent = m.id_algoritmo ? `${m.id_algoritmo} · EMA ${p.fast || "?"}/${p.slow || "?"}${p.use_trend_filter ? " + tendencia " + p.trend : ""}${p.use_rsi_filter ? " + RSI" : ""}` : "";
+  $("modelLabel").textContent = m.id_algoritmo ? `${m.id_algoritmo} · EMA ${p.fast || "?"}/${p.slow || "?"}${p.use_trend_filter ? " + trend " + p.trend : ""}${p.use_rsi_filter ? " + RSI" : ""}` : "";
   $("priceLegend").innerHTML = series.length
-    ? `<span><i style="background:#c9d1e0"></i>Cierre</span><span><i style="background:#5aa2ff"></i>EMA ${p.fast}</span><span><i style="background:#f5b84b"></i>EMA ${p.slow}</span>${p.use_trend_filter ? `<span><i style="background:#b48cff"></i>EMA ${p.trend} (tendencia)</span>` : ""}`
+    ? `<span><i style="background:#c9d1e0"></i>Close</span><span><i style="background:#5aa2ff"></i>EMA ${p.fast}</span><span><i style="background:#f5b84b"></i>EMA ${p.slow}</span>${p.use_trend_filter ? `<span><i style="background:#b48cff"></i>EMA ${p.trend} (trend)</span>` : ""}`
     : "";
-  if (unchanged($("chPrice"), JSON.stringify(series), force)) { /* sin cambios */ }
-  else if (!series.length) emptyChart($("chPrice"), "Sin datos del algoritmo todavía. Pulsa Iniciar y espera las primeras velas.");
+  if (unchanged($("chPrice"), JSON.stringify(series), force)) { /* Data is unchanged. */ }
+  else if (!series.length) emptyChart($("chPrice"), "No strategy data yet. Start the workers and wait for the first candles.");
   else {
     const mk = (key) => series.map((r) => r[key]);
     lineChart($("chPrice"), {
       series: [{color: "#c9d1e0", vals: mk("close"), w: 1.6}, {color: "#5aa2ff", vals: mk("fast")}, {color: "#f5b84b", vals: mk("slow")}]
         .concat(p.use_trend_filter ? [{color: "#b48cff", vals: mk("trend"), dash: true}] : []),
       labels: series.map((r) => clock(r.t)), yFmt: (v) => v.toFixed(4),
-      tipFmt: (i) => { const r = series[i]; return `<b>${clock(r.t)}</b>` + [["Cierre", r.close], ["EMA " + p.fast, r.fast], ["EMA " + p.slow, r.slow]].concat(p.use_trend_filter ? [["EMA " + p.trend, r.trend]] : []).map(([k, v]) => `<div class="r"><span class="muted">${k}</span><span class="num">${v == null ? "—" : v.toFixed(5)}</span></div>`).join(""); },
+      tipFmt: (i) => { const r = series[i]; return `<b>${clock(r.t)}</b>` + [["Close", r.close], ["EMA " + p.fast, r.fast], ["EMA " + p.slow, r.slow]].concat(p.use_trend_filter ? [["EMA " + p.trend, r.trend]] : []).map(([k, v]) => `<div class="r"><span class="muted">${k}</span><span class="num">${v == null ? "—" : v.toFixed(5)}</span></div>`).join(""); },
     });
   }
   const warm = m.warmup_needed ? Math.min(1, (m.buffer_len || 0) / m.warmup_needed) : 0;
@@ -478,15 +479,15 @@ function renderModel(s, force) {
   const sig = m.last_signal;
   const sigAge = m.last_signal_at ? (Date.now() - new Date(m.last_signal_at)) / 1000 : null;
   $("modelStats").innerHTML =
-    `<div class="stat"><div class="l">Sesgo</div><div class="v ${mod.bias === "ALCISTA" ? "up" : mod.bias === "BAJISTA" ? "down" : ""}">${mod.bias === "ALCISTA" ? "▲ ALCISTA" : mod.bias === "BAJISTA" ? "▼ BAJISTA" : "—"}</div></div>` +
-    `<div class="stat"><div class="l">Última señal</div><div class="v">${sig ? `<span class="chip ${sig === "BUY" ? "buy" : "sell"}">${sig}</span> <span class="muted" style="font-size:12px">${ago(sigAge)}</span>` : "—"}</div></div>` +
-    `<div class="stat"><div class="l">EMA ${p.fast || "rápida"}</div><div class="v">${mod.ema_fast != null ? mod.ema_fast.toFixed(5) : "—"}</div></div>` +
-    `<div class="stat"><div class="l">EMA ${p.slow || "lenta"}</div><div class="v">${mod.ema_slow != null ? mod.ema_slow.toFixed(5) : "—"}</div></div>` +
-    (p.use_trend_filter ? `<div class="stat"><div class="l">EMA ${p.trend} (tendencia)</div><div class="v">${mod.ema_trend != null ? mod.ema_trend.toFixed(5) : "—"}</div></div>` : "") +
+    `<div class="stat"><div class="l">Trend bias</div><div class="v ${mod.bias === "BULLISH" ? "up" : mod.bias === "BEARISH" ? "down" : ""}">${mod.bias === "BULLISH" ? "▲ BULLISH" : mod.bias === "BEARISH" ? "▼ BEARISH" : "—"}</div></div>` +
+    `<div class="stat"><div class="l">Last signal</div><div class="v">${sig ? `<span class="chip ${sig === "BUY" ? "buy" : "sell"}">${sig}</span> <span class="muted" style="font-size:12px">${ago(sigAge)}</span>` : "—"}</div></div>` +
+    `<div class="stat"><div class="l">EMA ${p.fast || "fast"}</div><div class="v">${mod.ema_fast != null ? mod.ema_fast.toFixed(5) : "—"}</div></div>` +
+    `<div class="stat"><div class="l">EMA ${p.slow || "slow"}</div><div class="v">${mod.ema_slow != null ? mod.ema_slow.toFixed(5) : "—"}</div></div>` +
+    (p.use_trend_filter ? `<div class="stat"><div class="l">EMA ${p.trend} (trend)</div><div class="v">${mod.ema_trend != null ? mod.ema_trend.toFixed(5) : "—"}</div></div>` : "") +
     (p.use_rsi_filter ? `<div class="stat"><div class="l">RSI</div><div class="v">${mod.rsi != null ? mod.rsi : "—"}</div></div>` : "") +
     `<div class="stat"><div class="l">Bid / Ask</div><div class="v">${ex.bid ? ex.bid.toFixed(5) : "—"} / ${ex.ask ? ex.ask.toFixed(5) : "—"}</div></div>` +
     `<div class="stat"><div class="l">Spread</div><div class="v">${spread != null ? nf(1).format(spread) + " pips" : "—"}</div></div>` +
-    `<div class="stat span2"><div class="l">Calentamiento · ${m.buffer_len || 0}/${m.warmup_needed || "?"} velas ${ready ? "· listo para operar" : m.warmup_needed ? "· aún no emite señales" : ""}</div><div class="bar"><i style="width:${warm * 100}%"></i></div></div>`;
+    `<div class="stat span2"><div class="l">Warm-up · ${m.buffer_len || 0}/${m.warmup_needed || "?"} candles ${ready ? "· ready" : m.warmup_needed ? "· waiting for enough data" : ""}</div><div class="bar"><i style="width:${warm * 100}%"></i></div></div>`;
 }
 
 function renderTable(s) {
@@ -501,27 +502,27 @@ function renderTable(s) {
     if (range === "today") rows = rows.filter((t) => t.day === s.stats.today_date);
     const open = s.open;
     const visible = rows.slice(0, shown);
-    let html = `<thead><tr><th class="l">Cierre</th><th>Par</th><th>Lado</th><th>Cantidad</th><th>Entrada</th><th>Salida</th><th>Pips</th><th>P&amp;L (USD)</th><th>Resultado</th><th>Duración</th></tr></thead><tbody>`;
+    let html = `<thead><tr><th class="l">Closed</th><th>Symbol</th><th>Side</th><th>Quantity</th><th>Entry</th><th>Exit</th><th>Pips</th><th>P&amp;L (USD)</th><th>Outcome</th><th>Duration</th></tr></thead><tbody>`;
     open.forEach((t) => {
-      html += `<tr class="open-row"><td class="l"><span class="chip open">● ABIERTA</span> <span class="muted">${when(t.entry_time)}</span></td><td>${esc(t.symbol)}</td><td><span class="chip ${t.side === "BUY" ? "buy" : "sell"}">${t.side === "BUY" ? "▲" : "▼"} ${t.side}</span></td><td>${nf(0).format(t.qty)}</td><td>${px(t.entry_price)}</td><td class="muted">${px(t.mark_price)}</td><td class="${cls(t.pips)}">${pips(t.pips)}</td><td class="${cls(t.pnl)}"><b>${t.pnl != null ? arrow(t.pnl) + money(t.pnl) : "—"}</b></td><td><span class="chip neutral">flotante</span></td><td>${dur((Date.now() - new Date(t.entry_time)) / 1000)}</td></tr>`;
+      html += `<tr class="open-row"><td class="l"><span class="chip open">● OPEN</span> <span class="muted">${when(t.entry_time)}</span></td><td>${esc(t.symbol)}</td><td><span class="chip ${t.side === "BUY" ? "buy" : "sell"}">${t.side === "BUY" ? "▲" : "▼"} ${t.side}</span></td><td>${nf(0).format(t.qty)}</td><td>${px(t.entry_price)}</td><td class="muted">${px(t.mark_price)}</td><td class="${cls(t.pips)}">${pips(t.pips)}</td><td class="${cls(t.pnl)}"><b>${t.pnl != null ? arrow(t.pnl) + money(t.pnl) : "—"}</b></td><td><span class="chip neutral">unrealized</span></td><td>${dur((Date.now() - new Date(t.entry_time)) / 1000)}</td></tr>`;
     });
     visible.forEach((t) => {
       html += `<tr><td class="l">${when(t.exit_time)}</td><td>${esc(t.symbol)}</td><td><span class="chip ${t.side === "BUY" ? "buy" : "sell"}">${t.side === "BUY" ? "▲" : "▼"} ${t.side}</span></td><td>${nf(0).format(t.qty)}</td><td>${px(t.entry_price)}</td><td>${px(t.exit_price)}</td><td class="${cls(t.pips)}">${pips(t.pips)}</td><td class="${cls(t.pnl)}"><b>${arrow(t.pnl)}${money(t.pnl)}</b></td><td><span class="chip ${t.exit_reason === "TP" ? "tp" : t.exit_reason === "SL" ? "sl" : "neutral"}">${esc(t.exit_reason)}</span></td><td>${dur(t.duration_s)}</td></tr>`;
     });
-    if (!open.length && !visible.length) html += `<tr><td colspan="10" class="emptyrow">${range === "today" ? "Sin operaciones hoy." : "Aún no hay operaciones. Pulsa Iniciar: aparecerán aquí en cuanto el ejecutor cierre la primera."}</td></tr>`;
+    if (!open.length && !visible.length) html += `<tr><td colspan="10" class="emptyrow">${range === "today" ? "No trades today." : "No trades yet. Start the workers; closed trades will appear here."}</td></tr>`;
     tbl.innerHTML = html + "</tbody>";
     const total = rows.length;
     more.hidden = total <= shown;
-    more.textContent = `Mostrar más (${Math.min(25, total - shown)} de ${total - shown} restantes)`;
+    more.textContent = `Show more (${Math.min(25, total - shown)} of ${total - shown} remaining)`;
   } else {
-    const label = {order_placed: ["Orden enviada", "open"], rejected: ["Rechazada", "warn"], error: ["Error", "sl"], ignored_paused: ["Ignorada (pausa)", "neutral"], signal_received: ["Señal", "neutral"]};
-    let html = `<thead><tr><th class="l">Hora</th><th class="l">Evento</th><th>Algoritmo</th><th>Señal</th><th>Precio ref.</th><th class="l">Detalle</th></tr></thead><tbody>`;
+    const label = {order_placed: ["Order submitted", "open"], rejected: ["Rejected", "warn"], error: ["Error", "sl"], ignored_paused: ["Ignored (paused)", "neutral"], signal_received: ["Signal", "neutral"]};
+    let html = `<thead><tr><th class="l">Time</th><th class="l">Event</th><th>Strategy</th><th>Signal</th><th>Reference price</th><th class="l">Details</th></tr></thead><tbody>`;
     s.events.forEach((e) => {
       const [txt, c] = label[e.event] || [e.event, "neutral"];
       const detail = e.reason || e.error || (e.event === "order_placed" ? `SL ${px(e.sl_price)} · TP ${px(e.tp_price)}` : "");
       html += `<tr><td class="l">${when(e.timestamp)}</td><td class="l"><span class="chip ${c}">${esc(txt)}</span></td><td>${esc(e.id_algoritmo)}</td><td>${e.signal ? `<span class="chip ${e.signal === "BUY" ? "buy" : "sell"}">${esc(e.signal)}</span>` : ""}</td><td>${e.precio_referencia != null ? px(e.precio_referencia) : "—"}</td><td class="l evt-detail">${esc(detail)}</td></tr>`;
     });
-    if (!s.events.length) html += `<tr><td colspan="6" class="emptyrow">Todavía no hay señales ni eventos.</td></tr>`;
+    if (!s.events.length) html += `<tr><td colspan="6" class="emptyrow">No signals or events yet.</td></tr>`;
     tbl.innerHTML = html + "</tbody>";
     more.hidden = true;
   }
@@ -530,15 +531,15 @@ function renderTable(s) {
 function renderHealth(s) {
   const h = s.health, w = s.workers;
   const chip = (state, label, val) => `<span class="hchip ${state}"><span class="dot"></span>${label}: <b>${val}</b></span>`;
-  const worker = (n, label) => chip(w[n].alive ? "ok" : (s.control.trading_enabled ? "bad" : "warn"), label, w[n].alive ? "activo" : "apagado");
+  const worker = (n, label) => chip(w[n].alive ? "ok" : (s.control.trading_enabled ? "bad" : "warn"), label, w[n].alive ? "running" : "stopped");
   const vAge = h.velas_age_s;
   const vState = vAge == null ? "warn" : vAge < 150 ? "ok" : "warn";
   $("health").innerHTML =
-    chip(h.kafka ? "ok" : "bad", "Kafka", h.kafka ? "conectado" : "sin conexión") +
-    chip(h.ib_port ? "ok" : "bad", "IB Gateway", h.ib_port ? "puerto abierto" : "no responde") +
-    chip(h.ib_connected ? "ok" : "warn", "Sesión IB", h.ib_connected ? "conectada" : "sin sesión") +
-    worker("producer", "Productor") + worker("algorithm", "Algoritmo") + worker("executor", "Ejecutor") +
-    chip(vState, "Última vela", vAge == null ? "ninguna" : ago(vAge) + (vAge > 300 ? " · ¿mercado cerrado o Spark detenido?" : ""));
+    chip(h.kafka ? "ok" : "bad", "Kafka", h.kafka ? "connected" : "unavailable") +
+    chip(h.ib_port ? "ok" : "bad", "IB Gateway", h.ib_port ? "port open" : "not responding") +
+    chip(h.ib_connected ? "ok" : "warn", "IB session", h.ib_connected ? "connected" : "not connected") +
+    worker("producer", "Producer") + worker("algorithm", "Strategy") + worker("executor", "Executor") +
+    chip(vState, "Latest candle", vAge == null ? "none" : ago(vAge) + (vAge > 300 ? " · market closed or Spark stopped?" : ""));
 }
 
 function render(s) {
@@ -546,7 +547,7 @@ function render(s) {
   renderHeader(s); renderKpis(s); renderCharts(s); renderModel(s); renderTable(s); renderHealth(s);
 }
 
-/* ---------- red ---------- */
+/* ---------- API requests ---------- */
 async function poll() {
   try {
     const r = await fetch("/api/state", {cache: "no-store"});
@@ -569,14 +570,14 @@ async function post(path, body) {
     if (!r.ok) throw new Error(j.error || r.status);
     render(j.state);
   } catch (e) {
-    toast("No se pudo completar la acción: " + e.message);
+    toast("The action could not be completed: " + e.message);
   } finally {
     busy = false; if (S) renderHeader(S);
   }
 }
 
 $("toggle").addEventListener("click", () => post(S && S.control.trading_enabled ? "/api/pause" : "/api/start"));
-$("stopAll").addEventListener("click", () => { if (confirm("¿Apagar productor, algoritmo y ejecutor? Las posiciones abiertas conservan su SL/TP en IB.")) post("/api/stop"); });
+$("stopAll").addEventListener("click", () => { if (confirm("Stop the producer, strategy, and executor? Existing positions keep their stop-loss and take-profit orders active at IB.")) post("/api/stop"); });
 $("variant").addEventListener("change", (e) => post("/api/variant", {variant: e.target.value}));
 $("tabTrades").addEventListener("click", () => { tab = "trades"; if (S) renderTable(S); });
 $("tabEvents").addEventListener("click", () => { tab = "events"; if (S) renderTable(S); });

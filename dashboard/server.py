@@ -1,15 +1,7 @@
-"""
-Dashboard de trading (Fase 7): servidor HTTP con la librería estándar (sin Flask/Streamlit).
+"""Serve the local dashboard and its small JSON API using Python's standard library.
 
-  GET  /              -> interfaz (dashboard/index.html)
-  GET  /api/state     -> todo lo que muestra la interfaz (JSON)
-  POST /api/start     -> lanza los workers que falten y activa el trading
-  POST /api/pause     -> pausa el trading (los workers siguen vivos y calientes)
-  POST /api/stop      -> pausa y apaga los workers
-  POST /api/variant   -> cambia el algoritmo (solo en pausa)
-
-Seguridad: escucha solo en 127.0.0.1, valida el header Host (anti DNS-rebinding) y exige un
-token por sesión en los POST (un sitio web ajeno no puede darle "Iniciar" a tu ejecutor).
+The server is intended for local use only. It binds to loopback, checks the
+Host header, and requires a per-session token for state-changing requests.
 """
 import csv
 import json
@@ -37,8 +29,9 @@ MAX_EVENTS_SENT = 60
 
 
 def _resolve_tz(name: str):
+    """Resolve an optional IANA time-zone name."""
     if not name:
-        return None  # zona del sistema
+        return None  # Use the system time zone.
     try:
         from zoneinfo import ZoneInfo
         return ZoneInfo(name)
@@ -47,6 +40,7 @@ def _resolve_tz(name: str):
 
 
 def tcp_open(host: str, port: int, timeout: float = 0.4) -> bool:
+    """Return whether a TCP service accepts a short connection attempt."""
     try:
         with socket.create_connection((host, port), timeout=timeout):
             return True
@@ -55,6 +49,7 @@ def tcp_open(host: str, port: int, timeout: float = 0.4) -> bool:
 
 
 def _num(value) -> Optional[float]:
+    """Convert a JSON value to a number, returning None when it is not numeric."""
     try:
         return float(value)
     except (TypeError, ValueError):
@@ -62,7 +57,7 @@ def _num(value) -> Optional[float]:
 
 
 def load_backtest_summary(reports_dir: Path = REPORTS_DIR) -> dict:
-    """Métricas IS/OOS por variante, del comparison.csv más reciente (si existe)."""
+    """Load per-variant in-sample and out-of-sample metrics from the newest report."""
     files = sorted(Path(reports_dir).glob("variants_comparison_*/comparison.csv"))
     if not files:
         return {}
@@ -77,6 +72,8 @@ def load_backtest_summary(reports_dir: Path = REPORTS_DIR) -> dict:
 
 
 class DashboardApp:
+    """Coordinate dashboard actions and assemble data for the browser interface."""
+
     def __init__(self, pm=None, orders_log: Path = LOGS_DIR / "orders.jsonl",
                  manage_producer: bool = DASHBOARD_MANAGE_PRODUCER, demo: bool = False,
                  tz_name: str = DASHBOARD_TZ):
@@ -86,9 +83,9 @@ class DashboardApp:
         self.demo = demo
         self.tz = _resolve_tz(tz_name)
         self.token = secrets.token_urlsafe(24)
-        self._lock = threading.Lock()  # serializa start/stop
+        self._lock = threading.Lock()
 
-    # ---------- Acciones ----------
+    # ---------- User actions ----------
 
     def start(self) -> dict:
         with self._lock:
@@ -110,14 +107,14 @@ class DashboardApp:
 
     def set_variant(self, variant: str) -> dict:
         if variant not in VARIANTS:
-            raise ValueError(f"variante desconocida: {variant}")
+            raise ValueError(f"Unknown strategy variant: {variant}")
         with self._lock:
             if state.load_control()["trading_enabled"]:
-                raise PermissionError("Pausa el trading antes de cambiar de algoritmo.")
+                raise PermissionError("Pause trading before changing the strategy.")
             state.set_variant(variant)
         return self.build_state()
 
-    # ---------- Estado ----------
+    # ---------- Dashboard state ----------
 
     def build_state(self) -> dict:
         now = datetime.now(timezone.utc)
@@ -231,7 +228,7 @@ def make_handler(app: DashboardApp, port: int):
         # -- rutas --
         def do_GET(self):
             if not self._host_ok():
-                return self._json(HTTPStatus.FORBIDDEN, {"error": "host no permitido"})
+                return self._json(HTTPStatus.FORBIDDEN, {"error": "Host is not allowed."})
             path = self.path.split("?", 1)[0]
             if path in ("/", "/index.html"):
                 html = INDEX_HTML.read_text(encoding="utf-8").replace("__TOKEN__", app.token)
@@ -241,18 +238,18 @@ def make_handler(app: DashboardApp, port: int):
                     return self._json(HTTPStatus.OK, app.build_state())
                 except Exception as e:  # noqa: BLE001
                     return self._json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": str(e)})
-            return self._json(HTTPStatus.NOT_FOUND, {"error": "no encontrado"})
+            return self._json(HTTPStatus.NOT_FOUND, {"error": "Not found."})
 
         def do_POST(self):
             if not self._host_ok():
-                return self._json(HTTPStatus.FORBIDDEN, {"error": "host no permitido"})
+                return self._json(HTTPStatus.FORBIDDEN, {"error": "Host is not allowed."})
             if not secrets.compare_digest(self.headers.get("X-Dashboard-Token", ""), app.token):
-                return self._json(HTTPStatus.FORBIDDEN, {"error": "token inválido"})
+                return self._json(HTTPStatus.FORBIDDEN, {"error": "Invalid dashboard token."})
             length = int(self.headers.get("Content-Length") or 0)
             try:
                 body = json.loads(self.rfile.read(length) or b"{}") if length else {}
             except json.JSONDecodeError:
-                return self._json(HTTPStatus.BAD_REQUEST, {"error": "JSON inválido"})
+                return self._json(HTTPStatus.BAD_REQUEST, {"error": "Invalid JSON request."})
             try:
                 if self.path == "/api/start":
                     result = app.start()
@@ -263,7 +260,7 @@ def make_handler(app: DashboardApp, port: int):
                 elif self.path == "/api/variant":
                     result = app.set_variant(str(body.get("variant", "")))
                 else:
-                    return self._json(HTTPStatus.NOT_FOUND, {"error": "no encontrado"})
+                    return self._json(HTTPStatus.NOT_FOUND, {"error": "Not found."})
             except PermissionError as e:
                 return self._json(HTTPStatus.CONFLICT, {"error": str(e)})
             except ValueError as e:

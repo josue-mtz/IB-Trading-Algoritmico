@@ -1,15 +1,7 @@
-"""
-Estado compartido entre dashboard, algoritmo y ejecutor.
+"""Read and write the JSON files shared by the dashboard and trading workers.
 
-Todo vive en archivos dentro de RUNTIME_DIR (escritura atómica) para que los
-procesos sean independientes entre sí y sobrevivan a reinicios del dashboard.
-
-  control.json        -> lo escribe el dashboard (botón Iniciar/Pausar, variante)
-  executor_status.json-> heartbeat del ejecutor (IB conectado, precio, posiciones)
-  algo_status.json    -> heartbeat del algoritmo (última vela, EMAs, calentamiento)
-  fills.jsonl         -> ejecuciones reales reportadas por IB (entradas/salidas)
-  open_orders_map.json-> orderId -> (trade_id, rol) para casar entradas con salidas
-  workers.json        -> PIDs de los procesos lanzados por el dashboard
+Atomic writes allow separate processes to exchange status without a database.
+The existing file names and JSON keys are kept stable for compatibility.
 """
 import json
 import os
@@ -29,7 +21,7 @@ ORDER_MAP_FILE = RUNTIME_DIR / "open_orders_map.json"
 WORKERS_FILE = RUNTIME_DIR / "workers.json"
 
 
-# ---------- Utilidades de archivo ----------
+# ---------- File helpers ----------
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
@@ -40,7 +32,7 @@ def now_iso() -> str:
 
 
 def parse_iso(value: Optional[str]) -> Optional[datetime]:
-    """Parsea timestamps ISO (con o sin 'Z'). Naive => UTC."""
+    """Parse an ISO timestamp; interpret a timestamp without a zone as UTC."""
     if not value:
         return None
     try:
@@ -55,7 +47,7 @@ def write_json_atomic(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + f".{os.getpid()}.tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False, default=str), encoding="utf-8")
-    # En Windows os.replace falla si un lector tiene el archivo abierto: reintentar.
+    # On Windows, retry if another process briefly has the target file open.
     for attempt in range(10):
         try:
             os.replace(tmp, path)
@@ -80,7 +72,7 @@ def append_jsonl(path: Path, entry: dict) -> None:
 
 
 def read_jsonl(path: Path) -> List[dict]:
-    """Lee un .jsonl ignorando líneas corruptas (p. ej. una escritura a medias)."""
+    """Read JSON-lines records, skipping malformed lines from partial writes."""
     rows: List[dict] = []
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -98,8 +90,7 @@ def read_jsonl(path: Path) -> List[dict]:
 
 
 def install_graceful_shutdown() -> None:
-    """Convierte SIGTERM en KeyboardInterrupt para que los `finally` de los workers
-    cierren Kafka e IB limpiamente cuando el dashboard los detiene."""
+    """Convert SIGTERM to KeyboardInterrupt so workers can close IB and Kafka."""
     def _handler(signum, frame):
         raise KeyboardInterrupt()
     try:
@@ -108,7 +99,7 @@ def install_graceful_shutdown() -> None:
         pass  # no estamos en el hilo principal
 
 
-# ---------- Control (botón Iniciar / Pausar) ----------
+# ---------- Dashboard trading controls ----------
 
 def _default_control() -> dict:
     return {
@@ -140,7 +131,7 @@ def is_trading_enabled() -> bool:
 
 
 def set_trading_enabled(enabled: bool) -> dict:
-    """Activa/pausa el trading acumulando el tiempo activo (para 'tiempo corriendo')."""
+    """Enable or pause trading while tracking total active time."""
     control = load_control()
     now = utcnow()
     if enabled and not control["trading_enabled"]:
@@ -162,7 +153,7 @@ def set_variant(variant: str) -> dict:
 
 
 def active_seconds(control: Optional[dict] = None, now: Optional[datetime] = None) -> float:
-    """Segundos totales con el trading activado (excluye pausas)."""
+    """Return elapsed trading time without counting paused periods."""
     control = control or load_control()
     total = float(control.get("accumulated_active_s") or 0.0)
     if control.get("trading_enabled"):

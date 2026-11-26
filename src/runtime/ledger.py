@@ -1,11 +1,8 @@
-"""
-Libro de operaciones: convierte fills de IB (entrada + salida TP/SL) en trades
-cerrados/abiertos y calcula métricas por día y acumuladas.
+"""Convert Interactive Brokers fills into trades and account summaries.
 
-Funciones puras (sin IB/Kafka) para poder testearlas.
-
-Supuesto de P&L: el par cotiza en USD (EURUSD, GBPUSD) => P&L USD = Δprecio × unidades.
-Para pares JPY el P&L se reportaría en JPY (no soportado aquí).
+These calculations have no IB or Kafka dependency and can be tested using
+synthetic order and fill records. Profit and loss assumes the quote currency
+is USD; JPY-quoted profit and loss conversion is not supported.
 """
 from collections import defaultdict
 from datetime import datetime, timezone, tzinfo
@@ -30,9 +27,9 @@ def _vwap(fills: List[dict]) -> Tuple[float, float]:
 
 def build_trades(orders: List[dict], records: List[dict]) -> Tuple[List[dict], List[dict]]:
     """
-    orders:  líneas de orders.jsonl (se usan los `order_placed` con `trade_id`).
-    records: líneas de fills.jsonl (type=fill | type=commission).
-    Devuelve (cerrados ordenados por cierre, abiertos).
+    ``orders`` contains orders.jsonl records, including order_placed events.
+    ``records`` contains fills.jsonl fill and commission records.
+    Return closed trades ordered by exit time and currently open trades.
     """
     placed: Dict[str, dict] = {
         o["trade_id"]: o for o in orders
@@ -48,7 +45,7 @@ def build_trades(orders: List[dict], records: List[dict]) -> Tuple[List[dict], L
         elif r.get("type", "fill") == "fill" and r.get("trade_id"):
             key = r.get("exec_id")
             if key is not None:
-                if key in seen_exec:  # IB puede reenviar la misma ejecución
+                if key in seen_exec:  # IB may resend an execution.
                     continue
                 seen_exec.add(key)
             fills_by_trade[r["trade_id"]].append(r)
@@ -104,7 +101,7 @@ def build_trades(orders: List[dict], records: List[dict]) -> Tuple[List[dict], L
 
 
 def mark_open_trade(trade: dict, bid: Optional[float], ask: Optional[float]) -> dict:
-    """Agrega P&L flotante a una operación abierta (largo se valúa al bid, corto al ask)."""
+    """Add floating P&L to an open trade, marking longs at bid and shorts at ask."""
     out = dict(trade)
     mark = bid if trade["side"] == "BUY" else ask
     if mark:
@@ -119,7 +116,7 @@ def mark_open_trade(trade: dict, bid: Optional[float], ask: Optional[float]) -> 
     return out
 
 
-# ---------- Métricas ----------
+# ---------- Trade metrics ----------
 
 def _day_key(iso: str, tz: Optional[tzinfo]) -> str:
     dt = parse_iso(iso)
@@ -137,7 +134,7 @@ def _summary(trades: List[dict]) -> dict:
         "losses": len(losses),
         "pnl": sum(t["pnl"] for t in trades),
         "winrate": (len(wins) / n) if n else None,
-        # None si no hay pérdidas (JSON no admite Infinity); `no_losses` distingue "∞" de "sin datos"
+        # JSON cannot encode Infinity; `no_losses` distinguishes it from missing data.
         "profit_factor": (gp / gl) if gl > 0 else None,
         "no_losses": gl == 0 and gp > 0,
         "expectancy": (sum(t["pnl"] for t in trades) / n) if n else None,
@@ -150,9 +147,9 @@ def _summary(trades: List[dict]) -> dict:
 
 
 def compute_stats(closed: List[dict], tz: Optional[tzinfo] = None, now: Optional[datetime] = None) -> dict:
-    """Métricas de hoy, acumuladas, por día y curva de P&L acumulado."""
+    """Calculate today's and lifetime totals, daily results, and equity history."""
     now = now or datetime.now(timezone.utc)
-    today = now.astimezone(tz).date().isoformat()  # tz=None => zona del sistema
+    today = now.astimezone(tz).date().isoformat()  # tz=None uses the system time zone.
 
     by_day: Dict[str, List[dict]] = defaultdict(list)
     for t in closed:
@@ -168,7 +165,7 @@ def compute_stats(closed: List[dict], tz: Optional[tzinfo] = None, now: Optional
             "wins": sum(1 for p in pnls if p > 0),
         })
 
-    # Curva acumulada y drawdown (en USD, pico→valle sobre P&L acumulado, arrancando en 0)
+    # Track cumulative profit and peak-to-trough drawdown in dollars.
     equity, cum, peak, max_dd = [], 0.0, 0.0, 0.0
     for t in closed:
         cum += t["pnl"]
@@ -185,7 +182,7 @@ def compute_stats(closed: List[dict], tz: Optional[tzinfo] = None, now: Optional
     durations = [t["duration_s"] for t in closed if t.get("duration_s") is not None]
     overall["avg_duration_s"] = (sum(durations) / len(durations)) if durations else None
 
-    # Racha actual
+    # Count the current consecutive win or loss streak.
     streak = 0
     for t in reversed(closed):
         sign = 1 if t["pnl"] > 0 else -1 if t["pnl"] < 0 else 0

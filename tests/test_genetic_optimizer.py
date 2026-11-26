@@ -1,3 +1,4 @@
+"""Offline unit tests for the genetic walk-forward parameter optimizer."""
 import math
 
 import pandas as pd
@@ -64,7 +65,7 @@ def test_window_excludes_trades_before_validation_start():
         n_trials=10,
         use_rsi_filter=False,
     )
-    assert result["trades"], "La secuencia sintética debe generar trades."
+    assert result["trades"], "The synthetic sequence must generate trades."
     assert all(trade["entry_idx"] >= 100 for trade in result["trades"])
 
 
@@ -82,3 +83,4 @@ def test_optimizer_is_reproducible_with_fixed_seed():
     assert first["candidate"] == second["candidate"]
     assert first["history"] == second["history"]
     assert first["seed"] == 123
+"""Offline unit tests for the genetic walk-forward parameter optimizer."""

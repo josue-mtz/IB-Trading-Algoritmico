@@ -1,7 +1,6 @@
-"""
-Dashboard de trading: python run_dashboard.py [--demo] [--port 8050] [--no-open]
+"""Start the local trading dashboard.
 
-  --demo   datos sintéticos en una carpeta temporal (no necesita IB ni Kafka, no lanza workers)
+Use ``--demo`` to display synthetic data without connecting to IB or Kafka.
 """
 import argparse
 import os
@@ -12,16 +11,22 @@ from pathlib import Path
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Dashboard de trading algorítmico (demo IB)")
-    p.add_argument("--demo", action="store_true", help="datos sintéticos, sin IB ni Kafka")
+    p = argparse.ArgumentParser(
+        description="Start the local paper-trading dashboard."
+    )
+    p.add_argument(
+        "--demo",
+        action="store_true",
+        help="use synthetic data without IB or Kafka",
+    )
     p.add_argument("--host", default=None)
     p.add_argument("--port", type=int, default=None)
-    p.add_argument("--no-open", action="store_true", help="no abrir el navegador")
+    p.add_argument("--no-open", action="store_true", help="do not open a browser")
     args = p.parse_args()
 
     demo_dir = None
     if args.demo:
-        # Debe fijarse ANTES de importar config.settings (RUNTIME_DIR se lee al importar).
+        # Set this before importing config.settings, which reads RUNTIME_DIR at import time.
         demo_dir = Path(tempfile.mkdtemp(prefix="fx_dashboard_demo_"))
         os.environ["RUNTIME_DIR"] = str(demo_dir)
 
@@ -31,7 +36,10 @@ def main() -> None:
     host = args.host or DASHBOARD_HOST
     port = args.port or DASHBOARD_PORT
     if host not in ("127.0.0.1", "localhost"):
-        sys.exit("Por seguridad el dashboard solo escucha en 127.0.0.1 (controla un ejecutor de órdenes).")
+        sys.exit(
+            "For safety, the dashboard only listens on 127.0.0.1 "
+            "because it can control an order executor."
+        )
 
     if args.demo:
         from dashboard.demo import DemoProcessManager, seed_demo
@@ -43,8 +51,15 @@ def main() -> None:
 
     httpd = serve(app, host, port)
     url = f"http://127.0.0.1:{port}"
-    print(f"Dashboard en {url}{'  (MODO DEMO)' if args.demo else ''}  — Ctrl+C para salir", flush=True)
-    print("Nota: cerrar el dashboard NO detiene los workers; usa el botón 'Apagar workers'.", flush=True)
+    print(
+        f"Dashboard at {url}{' (DEMO MODE)' if args.demo else ''}. "
+        "Press Ctrl+C to stop.",
+        flush=True,
+    )
+    print(
+        "Closing the dashboard does not stop workers; use the Stop workers button.",
+        flush=True,
+    )
     if not args.no_open:
         webbrowser.open(url)
     try:

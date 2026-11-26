@@ -1,4 +1,4 @@
-"""Corre el backtest sobre IS/OOS para una variante y genera reporte."""
+"""Run one strategy variant on historical data and write a complete report."""
 import argparse
 import json
 from dataclasses import fields
@@ -26,19 +26,28 @@ VARIANTS = {
 
 
 def run_backtest(variant: str = "v1", force_download: bool = False):
+    """Run the selected variant and return its IS/OOS metrics and report folder."""
     if variant not in VARIANTS:
-        raise ValueError(f"Variante desconocida: {variant}. Opciones: {list(VARIANTS)}")
+        raise ValueError(f"Unknown strategy variant: {variant}. Choose from {list(VARIANTS)}")
 
     cfg = VARIANTS[variant]
     df = get_or_download(force=force_download)
-    log.info(f"[{variant}] Dataset: {len(df)} velas | {df['inicio'].min()} → {df['inicio'].max()}")
+    log.info(
+        "[%s] Dataset: %s bars | %s to %s",
+        variant,
+        len(df),
+        df["inicio"].min(),
+        df["inicio"].max(),
+    )
     if len(df) < MINIMUM_CANDLES:
-        raise RuntimeError(f"Dataset insuficiente: {len(df)} velas; se requieren {MINIMUM_CANDLES}.")
+        raise RuntimeError(
+            f"Not enough historical bars: found {len(df)}, need {MINIMUM_CANDLES}."
+        )
 
     split = int(len(df) * 0.7)
     df_is = df.iloc[:split].reset_index(drop=True)
     df_oos = df.iloc[split:].reset_index(drop=True)
-    log.info(f"[{variant}] IS: {len(df_is)} | OOS: {len(df_oos)}")
+    log.info("[%s] In-sample: %s | Out-of-sample: %s", variant, len(df_is), len(df_oos))
 
     engine = BacktestEngine(
         initial_capital=INITIAL_CAPITAL,
@@ -56,9 +65,13 @@ def run_backtest(variant: str = "v1", force_download: bool = False):
     sharpe_degradation = None
     if m_is["sharpe"] > 0.3:
         sharpe_degradation = (m_is["sharpe"] - m_oos["sharpe"]) / m_is["sharpe"] * 100
-        log.info(f"[{variant}] Degradación Sharpe: {sharpe_degradation:.1f}%")
+        log.info("[%s] Sharpe degradation: %.1f%%", variant, sharpe_degradation)
     else:
-        log.info(f"[{variant}] Degradación Sharpe: N/A (Sharpe IS={m_is['sharpe']:.2f})")
+        log.info(
+            "[%s] Sharpe degradation: not applicable (in-sample Sharpe=%.2f)",
+            variant,
+            m_is["sharpe"],
+        )
 
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     out = REPORTS_DIR / f"backtest_{ts}_{variant}"
@@ -109,7 +122,7 @@ def run_backtest(variant: str = "v1", force_download: bool = False):
         json.dump(payload, f, indent=2)
 
     log.info("=" * 60)
-    log.info(f"RESULTADOS [{variant}] (id={cfg['id_algoritmo']})")
+    log.info("RESULTS [%s] (id=%s)", variant, cfg["id_algoritmo"])
     log.info("-" * 60)
     for label, m in [("IS ", m_is), ("OOS", m_oos)]:
         log.info(
@@ -118,7 +131,7 @@ def run_backtest(variant: str = "v1", force_download: bool = False):
             f"Sharpe={m['sharpe']:.2f}  MaxDD={m['max_drawdown']*100:.1f}%  "
             f"PnL={m['total_pnl']}$"
         )
-    log.info(f"Reporte: {out}")
+    log.info("Report: %s", out)
     log.info("=" * 60)
 
     return m_is, m_oos, out

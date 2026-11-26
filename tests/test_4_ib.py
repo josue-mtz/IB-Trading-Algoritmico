@@ -1,7 +1,7 @@
-"""
-Test de integración de Fase 4. Envía UNA orden bracket al paper account.
-Esto crea una orden real en tu cuenta demo DUR392579.
-Usar solo cuando el test unitario test_4.py ya pasó.
+"""Paper-account integration test that submits one bracket order.
+
+Run this only after the offline checks in ``test_4.py`` pass. This test can
+submit a real order to the configured IB paper account.
 """
 import math
 import time
@@ -21,28 +21,28 @@ def _current_buy_reference(ex, timeout=15):
             if isinstance(ask, (int, float)) and math.isfinite(ask) and ask > 0:
                 return float(ask)
             if time.monotonic() >= deadline:
-                raise TimeoutError("IB no entregó un precio ask válido para EURUSD.")
+                raise TimeoutError("IB did not provide a valid EURUSD ask price.")
             ex.ib.sleep(0.1)
     finally:
         ex.ib.cancelMktData(ex.contract)
 
 
-def test_connectivity():
+def run_connectivity_check():
     ib = IB()
     ib.connect(IB_HOST, IB_PORT, clientId=IB_CLIENT_ID_EXECUTOR, timeout=15)
-    print(f"✅ Conectado a IB. Cuentas: {ib.managedAccounts()}")
+    print(f"Connected to IB. Accounts: {ib.managedAccounts()}")
     ib.disconnect()
 
 
-def test_paper_bracket_order():
-    """Envía una orden BUY bracket de 10.000 EURUSD a la cuenta demo."""
+def submit_paper_bracket_order():
+    """Submit a 10,000 EURUSD BUY bracket order to the paper account."""
     ex = SignalExecutor()
     ex._connect_with_retry()
 
     try:
         if ex.connected_client_id != IB_CLIENT_ID_EXECUTOR:
             raise RuntimeError(
-                f"El clientId={IB_CLIENT_ID_EXECUTOR} ya está ocupado; "
+                f"clientId={IB_CLIENT_ID_EXECUTOR} is already in use; "
                 "se cancela el test antes de enviar una orden."
             )
 
@@ -51,13 +51,13 @@ def test_paper_bracket_order():
             account.startswith("DU") for account in accounts
         ):
             raise RuntimeError(
-                f"Se canceló el test para evitar una orden fuera de paper. "
+                "The test was cancelled to avoid submitting outside the paper account. "
                 f"Puerto={IB_PORT}, cuentas={accounts}"
             )
 
         ex.ib.qualifyContracts(ex.contract)
 
-        print("Conectado a IB paper. Enviando bracket BUY...")
+        print("Connected to IB paper. Submitting a BUY bracket...")
         reference_price = _current_buy_reference(ex)
         print(f"Precio ask de EURUSD para el bracket: {reference_price:.5f}")
         signal = {
@@ -72,8 +72,8 @@ def test_paper_bracket_order():
                 "No se pudo enviar el bracket. Revisa el log del ejecutor."
             )
         print(
-            "✅ Solicitud de bracket enviada a IB. "
-            "Confirma el estado de las órdenes en TWS/IB Gateway."
+            "Bracket order request submitted to IB. "
+            "Confirm the order status in TWS/IB Gateway."
         )
     finally:
         if ex.ib.isConnected():
@@ -81,12 +81,12 @@ def test_paper_bracket_order():
 
 
 if __name__ == "__main__":
-    print(" Test de integración Fase 4 ")
-    test_connectivity()
+    print("Phase 4 paper-account integration test")
+    run_connectivity_check()
     print()
     print("Siguiente: enviar una orden real a paper. Ctrl+C en 5s para cancelar.")
     try:
         time.sleep(5)
-        test_paper_bracket_order()
+        submit_paper_bracket_order()
     except KeyboardInterrupt:
         print("Cancelado por el usuario.")

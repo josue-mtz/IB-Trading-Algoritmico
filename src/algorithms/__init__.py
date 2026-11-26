@@ -1,0 +1,1 @@
+"""Streaming trading strategies and technical indicators."""

@@ -10,11 +10,11 @@ COPY --chown=spark:spark config/ ./config/
 COPY --chown=spark:spark src/__init__.py ./src/__init__.py
 COPY --chown=spark:spark src/common/ ./src/common/
 COPY --chown=spark:spark src/spark/ ./src/spark/
-COPY --chown=spark:spark run_velas.py ./run_velas.py
+COPY --chown=spark:spark run_candles.py ./run_candles.py
 
 USER spark
 ENV HOME=/tmp
 ENV PYSPARK_PYTHON=python3
 ENV PYSPARK_DRIVER_PYTHON=python3
 
-CMD ["/opt/spark/bin/spark-submit", "--master", "local[*]", "--conf", "spark.jars.ivy=/tmp/.ivy", "--packages", "org.apache.spark:spark-sql-kafka-0-10_2.13:4.2.1", "run_velas.py"]
+CMD ["/opt/spark/bin/spark-submit", "--master", "local[*]", "--conf", "spark.jars.ivy=/tmp/.ivy", "--packages", "org.apache.spark:spark-sql-kafka-0-10_2.13:4.2.1", "run_candles.py"]

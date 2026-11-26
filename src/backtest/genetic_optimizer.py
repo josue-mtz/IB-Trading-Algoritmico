@@ -27,6 +27,8 @@ MINIMUM_TRADES_PER_FOLD = 5
 
 @dataclass(frozen=True, order=True)
 class Candidate:
+    """One valid combination of strategy parameters tested by the search."""
+
     fast: int
     slow: int
     rsi_level: int
@@ -41,21 +43,21 @@ def walk_forward_folds(
 ) -> List[Tuple[int, int]]:
     """Return disjoint validation windows after an initial indicator warmup."""
     if fold_count < 1:
-        raise ValueError("fold_count debe ser al menos 1.")
+        raise ValueError("fold_count must be at least 1.")
     if not 0 < initial_train_fraction < 1:
-        raise ValueError("initial_train_fraction debe estar entre 0 y 1.")
+        raise ValueError("initial_train_fraction must be between 0 and 1.")
 
     first_validation = int(n_rows * initial_train_fraction)
     remaining = n_rows - first_validation
     if remaining < fold_count:
-        raise ValueError("No hay suficientes filas para crear las ventanas walk-forward.")
+        raise ValueError("Not enough rows to create the requested walk-forward folds.")
 
     folds = []
     for index in range(fold_count):
         start = first_validation + remaining * index // fold_count
         end = first_validation + remaining * (index + 1) // fold_count
         if end <= start:
-            raise ValueError("Una ventana walk-forward quedó vacía.")
+            raise ValueError("A walk-forward validation window is empty.")
         folds.append((start, end))
     return folds
 
@@ -97,6 +99,7 @@ def evaluate_window(
     initial_capital: float = 10000.0,
     use_rsi_filter: bool = True,
 ) -> dict:
+    """Evaluate one time range while preserving earlier rows for indicator warm-up."""
     engine = _engine_for(candidate, initial_capital, use_rsi_filter)
     trades, equity_curve = engine.run(data, start_index=start_index)
     trade_dicts = trades_to_dicts(trades)
@@ -130,6 +133,8 @@ def evaluate_walk_forward(
     use_rsi_filter: bool = True,
 ) -> dict:
     """Evaluate only each validation window; earlier rows provide indicator history."""
+    if not folds:
+        raise ValueError("At least one walk-forward fold is required.")
     all_trades = []
     fold_results = []
 
@@ -199,6 +204,12 @@ def evaluate_walk_forward(
 
 
 class GeneticOptimizer:
+    """Search strategy parameters with a seeded genetic algorithm.
+
+    Candidate fitness is measured only on walk-forward validation folds.
+    Rows preceding each fold initialize indicators but cannot produce trades.
+    """
+
     def __init__(
         self,
         data: pd.DataFrame,
@@ -210,11 +221,11 @@ class GeneticOptimizer:
         mutation_rate: float = 0.25,
     ):
         if population_size < 4:
-            raise ValueError("population_size debe ser al menos 4.")
+            raise ValueError("population_size must be at least 4.")
         if generations < 1:
-            raise ValueError("generations debe ser al menos 1.")
+            raise ValueError("generations must be at least 1.")
         if not 0 <= mutation_rate <= 1:
-            raise ValueError("mutation_rate debe estar entre 0 y 1.")
+            raise ValueError("mutation_rate must be between 0 and 1.")
 
         self.data = data.reset_index(drop=True)
         self.population_size = population_size
@@ -229,6 +240,7 @@ class GeneticOptimizer:
 
     @staticmethod
     def _repair(candidate: Candidate) -> Candidate:
+        """Clamp and align candidate parameters to the supported search space."""
         fast = min(FAST_MAX, max(FAST_MIN, candidate.fast))
         slow = min(SLOW_MAX, max(fast + 1, candidate.slow))
         rsi_level = min(RSI_LEVELS[-1], max(RSI_LEVELS[0], candidate.rsi_level))
@@ -238,6 +250,7 @@ class GeneticOptimizer:
         return Candidate(fast, slow, rsi_level, sl_pips, tp_pips)
 
     def random_candidate(self) -> Candidate:
+        """Create a valid random parameter combination."""
         fast = self.rng.randint(FAST_MIN, FAST_MAX)
         return Candidate(
             fast=fast,
@@ -248,6 +261,7 @@ class GeneticOptimizer:
         )
 
     def crossover(self, left: Candidate, right: Candidate) -> Candidate:
+        """Build a child by selecting each parameter from either parent."""
         return self._repair(Candidate(
             fast=self.rng.choice((left.fast, right.fast)),
             slow=self.rng.choice((left.slow, right.slow)),
@@ -257,6 +271,7 @@ class GeneticOptimizer:
         ))
 
     def mutate(self, candidate: Candidate) -> Candidate:
+        """Randomly replace selected parameters, then restore valid constraints."""
         genes = asdict(candidate)
         if self.rng.random() < self.mutation_rate:
             genes["fast"] = self.rng.randint(FAST_MIN, FAST_MAX)
@@ -271,6 +286,7 @@ class GeneticOptimizer:
         return self._repair(Candidate(**genes))
 
     def _score(self, candidate: Candidate) -> dict:
+        """Evaluate a candidate once and cache its walk-forward result."""
         if candidate not in self.cache:
             self.cache[candidate] = evaluate_walk_forward(
                 self.data,
@@ -288,6 +304,7 @@ class GeneticOptimizer:
         use_rsi_filter: bool,
         n_trials: int,
     ) -> dict:
+        """Evaluate a fixed configuration, such as the existing baseline."""
         return evaluate_walk_forward(
             self.data,
             candidate,
@@ -298,6 +315,7 @@ class GeneticOptimizer:
         )
 
     def optimize(self) -> dict:
+        """Run the configured generations and return the highest-fitness candidate."""
         population = {
             Candidate(
                 fast=9,

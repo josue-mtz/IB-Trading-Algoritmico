@@ -1,4 +1,4 @@
-"""Optimize EMA strategy parameters on IS and compare once on the final OOS."""
+"""Optimize EMA parameters on historical training windows and compare with V3."""
 import argparse
 import json
 from datetime import datetime, timezone
@@ -35,25 +35,30 @@ def run_ga_comparison(
     generations: int = 8,
     seed: int = 42,
 ) -> Path:
+    """Run a seeded genetic search and save metrics, trades, and an equity chart.
+
+    The final 30 percent of the dataset is held out until the candidate has
+    been selected. It is measured once and is never used by the optimizer.
+    """
     data = pd.read_csv(csv_path)
     missing_columns = REQUIRED_COLUMNS.difference(data.columns)
     if missing_columns:
-        raise ValueError(f"CSV sin columnas requeridas: {sorted(missing_columns)}")
+        raise ValueError(f"CSV is missing required columns: {sorted(missing_columns)}")
     if len(data) < MINIMUM_CANDLES:
         raise ValueError(
-            f"Dataset insuficiente: {len(data)} velas; se requieren {MINIMUM_CANDLES}."
+            f"Not enough historical bars: found {len(data)}, need {MINIMUM_CANDLES}."
         )
     data["inicio"] = pd.to_datetime(data["inicio"], utc=True)
     if data["inicio"].isna().any():
-        raise ValueError("El CSV contiene timestamps inválidos en la columna 'inicio'.")
+        raise ValueError("The CSV contains invalid timestamps in the 'inicio' column.")
     if not data["inicio"].is_monotonic_increasing:
-        raise ValueError("El CSV debe estar ordenado cronológicamente por 'inicio'.")
+        raise ValueError("The CSV must be sorted chronologically by 'inicio'.")
 
     split = int(len(data) * 0.7)
     is_data = data.iloc[:split].reset_index(drop=True)
     oos_start = split
     log.info(
-        "Dataset: %s velas | IS=%s | OOS=%s",
+        "Dataset: %s bars | in-sample=%s | out-of-sample=%s",
         len(data),
         len(is_data),
         len(data) - oos_start,
@@ -129,10 +134,10 @@ def run_ga_comparison(
     import matplotlib.pyplot as plt
 
     fig, axis = plt.subplots(figsize=(10, 5))
-    axis.plot(ga_oos["equity_curve"], label="GA optimizado")
+    axis.plot(ga_oos["equity_curve"], label="GA optimized")
     axis.plot(baseline_oos["equity_curve"], label="V3 baseline")
-    axis.set_title("Curva de equity OOS (holdout final)")
-    axis.set_xlabel("Trade cerrado")
+    axis.set_title("OOS equity curve (final holdout)")
+    axis.set_xlabel("Closed trade")
     axis.set_ylabel("Equity (USD)")
     axis.grid(True, alpha=0.3)
     axis.legend()
@@ -151,12 +156,12 @@ def run_ga_comparison(
             "oos_rows": len(data) - oos_start,
             "split_fraction": 0.7,
             "oos_note": (
-                "Holdout no totalmente virgen: el OOS ya se inspeccionó en "
-                "comparaciones anteriores; úsese como evidencia exploratoria."
+                "This holdout is not fully untouched: it was inspected in earlier "
+                "comparisons and should be treated as exploratory evidence."
             ),
         },
         "methodology": {
-            "selection": "Solo walk-forward IS; OOS no participa en la selección.",
+            "selection": "Walk-forward in-sample only; OOS is not used for selection.",
             "folds": optimizer.folds,
             "population_size": population_size,
             "generations": generations,
@@ -172,9 +177,9 @@ def run_ga_comparison(
                 "take_profit_pips": list(range(5, 61, 5)),
             },
             "fitness": (
-                "DSR diario IS penalizado por presupuesto de ensayos, consistencia de "
-                "folds, PnL y drawdown; penaliza menos de 30 trades totales o menos "
-                "de 5 en cualquier fold."
+                "Daily in-sample DSR adjusted for the trial budget, fold consistency, "
+                "profit, and drawdown. Candidates with fewer than 30 trades overall "
+                "or fewer than 5 trades in any fold are penalized."
             ),
         },
         "baseline_v3": {
@@ -196,8 +201,8 @@ def run_ga_comparison(
             },
         },
         "recommendation": (
-            "Comparar el OOS de forma descriptiva; no seleccionar parámetros usando "
-            "este resultado. No activar en trading real sin validación independiente."
+            "Treat OOS as descriptive evidence, not as a parameter-selection tool. "
+            "Do not enable live trading without independent validation."
         ),
     }
     with (output_dir / "metrics.json").open("w", encoding="utf-8") as report_file:
@@ -215,7 +220,7 @@ def run_ga_comparison(
         ga_oos["metrics"]["sharpe"],
         ga_oos["metrics"]["num_trades"],
     )
-    log.info("Reporte: %s", output_dir)
+    log.info("Report: %s", output_dir)
     return output_dir
 
 

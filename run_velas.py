@@ -1,10 +1,6 @@
-import os
-import sys
+"""Compatibility entry point; use ``python run_candles.py`` for new commands."""
+from run_candles import run
 
-os.environ.setdefault("PYSPARK_PYTHON", sys.executable)
-os.environ.setdefault("PYSPARK_DRIVER_PYTHON", sys.executable)
-
-from src.spark.ticks_to_velas import run
 
 if __name__ == "__main__":
     run()

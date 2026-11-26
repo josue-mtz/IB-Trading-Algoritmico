@@ -1,13 +1,10 @@
-"""
-Corre las 4 variantes sobre el MISMO dataset (carga una vez) y muestra tabla
-comparativa. No re-descarga.
-"""
+"""Compare all configured EMA variants using the same historical dataset."""
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 import pandas as pd
 
 from config.settings import REPORTS_DIR
-from run_backtest import run_backtest, VARIANTS
+from run_backtest import VARIANTS
 from src.backtest.downloader import get_or_download
 from src.backtest.engine import BacktestEngine, trades_to_dicts
 from src.backtest.metrics import all_metrics, compute_daily_returns
@@ -17,17 +14,23 @@ log = get_logger("variants_runner")
 INITIAL_CAPITAL = 10000.0
 
 
-def main():
+def main() -> None:
+    """Run each strategy on matching in-sample and out-of-sample periods."""
     df = get_or_download()
     if len(df) < 20_000:
-        raise RuntimeError(f"Dataset insuficiente: {len(df)} velas.")
+        raise RuntimeError(f"Not enough historical bars: found {len(df)}.")
 
     split = int(len(df) * 0.7)
     df_is = df.iloc[:split].reset_index(drop=True)
     df_oos = df.iloc[split:].reset_index(drop=True)
-    log.info(f"Dataset: {len(df)} velas | IS {len(df_is)} | OOS {len(df_oos)}")
+    log.info(
+        "Dataset: %s bars | in-sample %s | out-of-sample %s",
+        len(df),
+        len(df_is),
+        len(df_oos),
+    )
 
-    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     summary_root = REPORTS_DIR / f"variants_comparison_{ts}"
     summary_root.mkdir(parents=True, exist_ok=True)
 
@@ -67,9 +70,9 @@ def main():
     with open(summary_root / "comparison.json", "w", encoding="utf-8") as f:
         json.dump(rows, f, indent=2)
 
-    # Tabla en consola
+    # Print a compact comparison table to the terminal.
     log.info("=" * 110)
-    log.info("COMPARATIVA DE VARIANTES")
+    log.info("STRATEGY VARIANT COMPARISON")
     log.info("=" * 110)
     log.info(f"{'Var':<5}{'Trades':>8}{'PF':>8}{'WR%':>8}{'Sharpe':>9}{'MaxDD%':>9}{'PnL$':>10}  |"
              f"{'Trades':>8}{'PF':>8}{'WR%':>8}{'Sharpe':>9}{'MaxDD%':>9}{'PnL$':>10}")
@@ -84,16 +87,21 @@ def main():
         )
     log.info("=" * 110)
 
-    # Ganador por Sharpe OOS
+    # This is a descriptive ranking, not a recommendation to trade live.
     winners = [r for r in rows if (r["oos_sharpe"] or 0) > 0]
     if winners:
         best = max(winners, key=lambda r: r["oos_sharpe"])
-        log.info(f"🏆 Mejor variante por Sharpe OOS: {best['variant']} ({best['id_algoritmo']}) → Sharpe={best['oos_sharpe']}")
-        log.info(f"   Para activar en vivo: actualiza EXECUTOR_ALLOWED_ALGORITHMS={best['id_algoritmo']} en .env")
+        log.info(
+            "Highest observed out-of-sample Sharpe: %s (%s), Sharpe=%s",
+            best["variant"],
+            best["id_algoritmo"],
+            best["oos_sharpe"],
+        )
+        log.info("Validate independently and use a paper account before any live deployment.")
     else:
-        log.info("❌ Ninguna variante tiene Sharpe OOS positivo. Recomendación: pasar a Opción A (GA).")
+        log.info("No strategy variant has a positive out-of-sample Sharpe.")
 
-    log.info(f"Reporte: {summary_root}")
+    log.info("Report: %s", summary_root)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Algoritmo de cruce de EMAs con filtros opcionales (RSI y tendencia)."""
+"""EMA crossover strategy with optional RSI and long-term trend filters."""
 from typing import Optional
 
 from config.settings import (
@@ -6,12 +6,14 @@ from config.settings import (
     RSI_PERIOD, RSI_OVERBOUGHT, RSI_OVERSOLD,
     EMA_TREND_PERIOD,
 )
-from src.algorithms.base_algoritmo import BaseAlgorithm
-from src.algorithms.indicadores import ema_series, rsi_series, detect_cross
+from src.algorithms.base_algorithm import BaseAlgorithm
+from src.algorithms.indicators import ema_series, rsi_series, detect_cross
 
 
 class EMACross(BaseAlgorithm):
-    id_algoritmo = "ema_cross_v1"  # default; override via __init__
+    """Generate buy or sell signals when the fast EMA crosses the slow EMA."""
+
+    id_algoritmo = "ema_cross_v1"
 
     def __init__(
         self,
@@ -25,7 +27,7 @@ class EMACross(BaseAlgorithm):
         trend_period: int = EMA_TREND_PERIOD,
         id_algoritmo: str = "ema_cross_v1",
     ):
-        # Buffer grande para cubrir slow EMA + trend EMA + margen
+        # Retain enough history for the indicators and their warm-up periods.
         buffer_size = max(slow * 3, slow + trend_period + 20)
         super().__init__(id_algoritmo=id_algoritmo, buffer_size=buffer_size)
         self.fast = fast
@@ -47,9 +49,9 @@ class EMACross(BaseAlgorithm):
     def warmup_needed(self) -> int:
         return self._min_warmup()
 
-    def extra_status(self, velas: list) -> dict:
-        """Serie reciente (60 velas) de cierre y EMAs para graficar el modelo en vivo."""
-        closes = [float(v["close"]) for v in velas]
+    def extra_status(self, candles: list) -> dict:
+        """Return recent prices and indicator values for the live dashboard."""
+        closes = [float(candle["close"]) for candle in candles]
         fast = ema_series(closes, self.fast)
         slow = ema_series(closes, self.slow)
         trend = ema_series(closes, self.trend_period) if self.use_trend_filter else [None] * len(closes)
@@ -60,13 +62,20 @@ class EMACross(BaseAlgorithm):
 
         tail = slice(-60, None)
         series = [
-            {"t": v.get("inicio"), "close": r(c), "fast": r(f), "slow": r(sl), "trend": r(t)}
-            for v, c, f, sl, t in list(zip(velas, closes, fast, slow, trend))[tail]
+            {
+                "t": candle.get("inicio"),
+                "close": r(close),
+                "fast": r(fast_value),
+                "slow": r(slow_value),
+                "trend": r(trend_value),
+            }
+            for candle, close, fast_value, slow_value, trend_value
+            in list(zip(candles, closes, fast, slow, trend))[tail]
         ]
         last_fast, last_slow = fast[-1], slow[-1]
         bias = None
         if last_fast is not None and last_slow is not None:
-            bias = "ALCISTA" if last_fast > last_slow else "BAJISTA"
+            bias = "BULLISH" if last_fast > last_slow else "BEARISH"
         return {
             "params": {"fast": self.fast, "slow": self.slow, "trend": self.trend_period,
                        "use_trend_filter": self.use_trend_filter, "use_rsi_filter": self.use_rsi_filter},
@@ -76,11 +85,12 @@ class EMACross(BaseAlgorithm):
             "series": series,
         }
 
-    def generate_signal(self, velas: list) -> Optional[dict]:
-        if len(velas) < self._min_warmup():
+    def generate_signal(self, candles: list) -> Optional[dict]:
+        """Evaluate the latest candle and return a signal when all filters pass."""
+        if len(candles) < self._min_warmup():
             return None
 
-        closes = [float(v["close"]) for v in velas]
+        closes = [float(candle["close"]) for candle in candles]
         fast_s = ema_series(closes, self.fast)
         slow_s = ema_series(closes, self.slow)
 

@@ -1,0 +1,1 @@
+"""Shared state, worker lifecycle, and trade-ledger utilities."""

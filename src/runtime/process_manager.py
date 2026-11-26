@@ -1,7 +1,7 @@
-"""
-Lanza y detiene los workers (productor IB, algoritmo, ejecutor) como procesos
-independientes. Los PIDs se guardan en workers.json, así el dashboard puede
-reiniciarse sin perder el control de lo que ya está corriendo.
+"""Start, stop, and report the background workers controlled by the dashboard.
+
+Worker process IDs are persisted so the dashboard can reconnect to processes
+that remain active after the web server restarts.
 """
 import os
 import signal
@@ -22,7 +22,7 @@ def pid_alive(pid: int) -> bool:
     if not pid:
         return False
     if IS_WINDOWS:
-        # OJO: en Windows os.kill(pid, 0) TERMINA el proceso; usar tasklist.
+        # On Windows, os.kill(pid, 0) can terminate the process; use tasklist.
         out = subprocess.run(
             ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
             capture_output=True, text=True,
@@ -45,7 +45,7 @@ class ProcessManager:
         self.workers_file = Path(workers_file)
         self._procs: Dict[str, subprocess.Popen] = {}
 
-    # ---------- Definición de workers ----------
+    # ---------- Worker commands ----------
 
     def command(self, name: str, variant: str) -> List[str]:
         py = [sys.executable, "-u"]
@@ -55,9 +55,9 @@ class ProcessManager:
             return py + ["run_executor.py"]
         if name == "algorithm":
             return py + ["run_algorithms.py", "--variant", variant]
-        raise ValueError(f"worker desconocido: {name}")
+        raise ValueError(f"Unknown worker: {name}")
 
-    # ---------- Estado ----------
+    # ---------- Worker state ----------
 
     def _load(self) -> dict:
         data = read_json(self.workers_file, {})
@@ -69,7 +69,7 @@ class ProcessManager:
     def is_alive(self, name: str) -> bool:
         proc = self._procs.get(name)
         if proc is not None:
-            return proc.poll() is None  # poll() también cosecha zombies
+            return proc.poll() is None  # poll() also reaps completed children.
         info = self._load().get(name)
         return bool(info) and pid_alive(int(info.get("pid", 0)))
 
@@ -86,23 +86,23 @@ class ProcessManager:
             }
         return out
 
-    # ---------- Acciones ----------
+    # ---------- Worker actions ----------
 
     def start(self, name: str, variant: str) -> bool:
-        """Lanza el worker si no está vivo. Devuelve True si lo lanzó."""
+        """Start the worker if it is not running; return whether it was started."""
         if name == "algorithm" and variant not in VARIANTS:
-            raise ValueError(f"variante desconocida: {variant}")
+            raise ValueError(f"Unknown strategy variant: {variant}")
         if self.is_alive(name):
             return False
         LOGS_DIR.mkdir(exist_ok=True)
         out = open(LOGS_DIR / f"worker_{name}.out", "a", encoding="utf-8")
         env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1",
-                   TRADING_CONTROL="dashboard")  # el ejecutor obedece control.json solo así
+                   TRADING_CONTROL="dashboard")  # The executor reads dashboard controls only in this mode.
         kwargs = {}
         if IS_WINDOWS:
             kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
         else:
-            kwargs["start_new_session"] = True  # grupo propio => matamos todo el árbol
+            kwargs["start_new_session"] = True  # Use a process group to stop all descendants.
         proc = subprocess.Popen(
             self.command(name, variant), cwd=str(self.base_dir), env=env,
             stdout=out, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, **kwargs,
@@ -114,7 +114,7 @@ class ProcessManager:
         return True
 
     def stop(self, name: str, timeout: float = 8.0) -> bool:
-        """Detiene el worker (SIGTERM → espera → SIGKILL). True si había algo que detener."""
+        """Stop the worker gracefully, then force-stop it if needed."""
         if not self.is_alive(name):
             self._forget(name)
             return False
@@ -153,7 +153,7 @@ class ProcessManager:
             self._save(data)
 
     def start_all(self, variant: str, manage_producer: bool = True) -> List[str]:
-        """Arranca los workers que falten. Si el algoritmo corre con otra variante lo reinicia."""
+        """Start missing workers and restart the strategy if its variant changed."""
         started = []
         current = self.status()["algorithm"]
         if current["alive"] and current["variant"] != variant:

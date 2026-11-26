@@ -1,7 +1,5 @@
-"""
-Gestión de riesgo del ejecutor.
-Reglas de negocio puras; sin dependencias de IB ni Kafka.
-"""
+"""Pure risk checks and bracket-price calculations for the order executor."""
+import math
 from typing import List, Tuple
 
 from config.settings import (
@@ -18,6 +16,8 @@ PIP_SIZE = 0.0001
 
 
 class RiskManager:
+    """Reject unauthorized or unsafe signals before an order reaches IB."""
+
     def __init__(
         self,
         trade_size: int = RISK_TRADE_SIZE,
@@ -38,29 +38,35 @@ class RiskManager:
         current_positions: List[dict],
     ) -> Tuple[bool, str]:
         """
-        Retorna (True, "ok") si la señal puede ejecutarse.
-        Retorna (False, razón) si debe rechazarse.
+        Return ``(True, "ok")`` when a signal may be executed.
+        Return ``(False, reason)`` when it must be rejected.
 
-        `current_positions` es una lista de dicts con al menos:
-            {"symbol": "EURUSD", "position": 10000.0}
-        donde `position` es la cantidad neta (positivo=long, negativo=short).
+        ``current_positions`` contains dictionaries with at least ``symbol``
+        and ``position``. Positive positions are long; negative positions are
+        short.
         """
-        # 1. Filtro de algoritmo (ignorar señales de test)
+        # Reject unapproved strategy IDs, including test-only strategies.
         if signal.get("id_algoritmo") not in self.allowed_algorithms:
-            return False, f"algoritmo '{signal.get('id_algoritmo')}' no autorizado"
+            return False, f"Algorithm '{signal.get('id_algoritmo')}' is not allowed."
 
-        # 2. Validar campos requeridos
+        # Required message fields are part of the existing Kafka contract.
         for field in ("id_algoritmo", "symbol", "signal", "precio_referencia"):
             if field not in signal:
-                return False, f"campo faltante: {field}"
+                return False, f"Required field is missing: {field}."
 
         if signal["signal"] not in ("BUY", "SELL"):
-            return False, f"señal inválida: {signal['signal']}"
+            return False, f"Invalid signal direction: {signal['signal']}."
 
-        if not isinstance(signal["precio_referencia"], (int, float)) or signal["precio_referencia"] <= 0:
-            return False, f"precio_referencia inválido: {signal['precio_referencia']}"
+        reference_price = signal["precio_referencia"]
+        if (
+            isinstance(reference_price, bool)
+            or not isinstance(reference_price, (int, float))
+            or not math.isfinite(reference_price)
+            or reference_price <= 0
+        ):
+            return False, f"Invalid reference price: {reference_price}."
 
-        # 3. Máximo de posiciones por símbolo
+        # Count only open positions for the symbol in this signal.
         symbol = signal["symbol"]
         open_positions = [
             p for p in current_positions
@@ -68,8 +74,8 @@ class RiskManager:
         ]
         if len(open_positions) >= self.max_positions:
             return False, (
-                f"máximo de posiciones alcanzado para {symbol} "
-                f"({len(open_positions)}/{self.max_positions})"
+                f"Maximum open positions reached for {symbol} "
+                f"({len(open_positions)}/{self.max_positions})."
             )
 
         return True, "ok"
@@ -78,7 +84,7 @@ class RiskManager:
         self, side: str, reference_price: float, pip_size: float = PIP_SIZE
     ) -> Tuple[float, float]:
         """
-        Calcula (stop_loss, take_profit) alrededor del precio de referencia.
+        Calculate (stop loss, take profit) around the reference price.
 
         - BUY:  SL por debajo, TP por encima
         - SELL: SL por encima, TP por debajo
@@ -90,6 +96,6 @@ class RiskManager:
             sl = reference_price + self.sl_pips * pip_size
             tp = reference_price - self.tp_pips * pip_size
         else:
-            raise ValueError(f"side inválido: {side}")
+            raise ValueError(f"Invalid order side: {side}")
 
         return round(sl, 5), round(tp, 5)

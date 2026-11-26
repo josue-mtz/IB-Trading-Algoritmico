@@ -1,19 +1,16 @@
-"""
-Datos sintéticos para ver el dashboard sin IB ni Kafka (python run_dashboard.py --demo).
-Todo se escribe en una carpeta temporal; no toca tus logs ni tu data real.
-"""
+"""Create isolated synthetic dashboard data without connecting to IB or Kafka."""
 import json
 import math
 import random
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from src.algorithms.indicadores import ema_series
+from src.algorithms.indicators import ema_series
 from src.runtime import state
 
 
 class DemoProcessManager:
-    """Reemplaza al ProcessManager: no lanza nada, solo simula que los workers están vivos."""
+    """Simulate worker state without launching background processes."""
 
     def __init__(self):
         self.alive = {"producer": False, "algorithm": False, "executor": False}
@@ -47,7 +44,7 @@ def seed_demo(orders_log: Path, days: int = 18, seed: int = 7) -> None:
     orders, records = [], []
     price = 1.0850
 
-    # ~2-4 operaciones por día hábil; TP 20 pips / SL 10 pips, tamaño 10 000 => 1 pip = 1 USD
+    # Simulate a few trades per business day with the default paper-trading size.
     for d in range(days, 0, -1):
         day = (now - timedelta(days=d)).replace(hour=8, minute=0, second=0, microsecond=0)
         if day.weekday() >= 5:
@@ -78,7 +75,7 @@ def seed_demo(orders_log: Path, days: int = 18, seed: int = 7) -> None:
                                 "side": sd, "shares": 10000.0, "price": px})
                 records.append({"type": "commission", "exec_id": ex, "commission": 0.4})
 
-    # Una operación abierta ahora mismo
+    # Add one currently open trade.
     tid = "demo_open"
     entry = round(price, 5)
     t_in = now - timedelta(minutes=23)
@@ -91,19 +88,19 @@ def seed_demo(orders_log: Path, days: int = 18, seed: int = 7) -> None:
                     "shares": 10000.0, "price": entry})
     records.append({"type": "commission", "exec_id": "open-entry", "commission": 0.4})
 
-    # Eventos de ejemplo (señales rechazadas, pausa)
+    # Add sample signal and rejection events.
     orders.append({"timestamp": _iso(now - timedelta(minutes=9)), "event": "signal_received",
                    "id_algoritmo": algo, "symbol": "EURUSD", "signal": "SELL", "precio_referencia": entry})
     orders.append({"timestamp": _iso(now - timedelta(minutes=9)), "event": "rejected",
                    "id_algoritmo": algo, "symbol": "EURUSD", "signal": "SELL", "precio_referencia": entry,
-                   "reason": "máximo de posiciones alcanzado para EURUSD (1/1)"})
+                   "reason": "Maximum open positions reached for EURUSD (1/1)."})
     orders.sort(key=lambda o: o["timestamp"])
 
     orders_log.parent.mkdir(parents=True, exist_ok=True)
     orders_log.write_text("\n".join(json.dumps(o) for o in orders) + "\n", encoding="utf-8")
     state.FILLS_FILE.write_text("\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8")
 
-    # Heartbeats: ejecutor y algoritmo
+    # Write sample status heartbeats for the executor and strategy.
     bid = round(entry + 0.0007, 5)
     state.write_json_atomic(state.EXECUTOR_STATUS_FILE, {
         "updated_at": state.now_iso(), "ib_connected": True, "accounts": ["DU1234567"],
@@ -128,8 +125,8 @@ def seed_demo(orders_log: Path, days: int = 18, seed: int = 7) -> None:
                              "use_rsi_filter": False},
                   "ema_fast": series[-1]["fast"], "ema_slow": series[-1]["slow"],
                   "ema_trend": series[-1]["trend"], "rsi": None,
-                  "bias": "ALCISTA" if series[-1]["fast"] > series[-1]["slow"] else "BAJISTA",
+                  "bias": "BULLISH" if series[-1]["fast"] > series[-1]["slow"] else "BEARISH",
                   "series": series},
     })
-    # Pausado al abrir la demo; el usuario prueba el botón Iniciar
+    # Start paused so the user can try the dashboard's Start button.
     state.save_control({**state._default_control(), "variant": "v3"})
