@@ -40,3 +40,15 @@ RISK_MAX_POSITIONS = int(os.getenv("RISK_MAX_POSITIONS", 1))
 EXECUTOR_ALLOWED_ALGORITHMS = os.getenv(
     "EXECUTOR_ALLOWED_ALGORITHMS", "ema_cross_v1"
 ).split(",")
+
+# Backtest
+BACKTEST_DAYS = int(os.getenv("BACKTEST_DAYS", 30))
+BACKTEST_SPREAD_PIPS = float(os.getenv("BACKTEST_SPREAD_PIPS", 2.0))
+BACKTEST_SLIPPAGE_PIPS = float(os.getenv("BACKTEST_SLIPPAGE_PIPS", 0.5))
+BACKTEST_SL_PIPS = float(os.getenv("BACKTEST_SL_PIPS", 10))
+BACKTEST_TP_PIPS = float(os.getenv("BACKTEST_TP_PIPS", 20))
+
+DATA_DIR = BASE_DIR / "data" / "historical"
+REPORTS_DIR = BASE_DIR / "reports"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+REPORTS_DIR.mkdir(parents=True, exist_ok=True)
