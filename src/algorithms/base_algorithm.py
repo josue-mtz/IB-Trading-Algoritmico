@@ -85,7 +85,7 @@ class BaseAlgorithm(ABC):
         Así, un proceso reiniciado puede continuar tras un calentamiento breve,
         sin esperar de nuevo todo el historial que requieren los indicadores.
         """
-    from confluent_kafka import Consumer, TopicPartition
+        from confluent_kafka import Consumer, TopicPartition
         consumer = Consumer({
             "bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS,
             "group.id": f"{self.id_algoritmo}-prewarm-{uuid.uuid4().hex[:8]}",

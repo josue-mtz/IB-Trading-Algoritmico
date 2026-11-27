@@ -1,6 +1,6 @@
 """Pruebas locales de métricas de backtest, comportamiento y variantes de estrategia."""
 import pandas as pd
-from src.algorithms.indicadores import rsi_series
+from src.algorithms.indicators import rsi_series
 from src.algorithms.ema_cross import EMACross
 from src.backtest.metrics import (
     winrate, profit_factor, expectancy, sharpe, max_drawdown,
