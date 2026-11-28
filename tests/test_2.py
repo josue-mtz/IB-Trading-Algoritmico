@@ -78,9 +78,28 @@ def test_multiple_windows():
     spark.stop()
 
 
+def test_flexible_timestamps():
+    """Acepta timestamps ISO de otros equipos sin microsegundos o con milisegundos."""
+    spark = get_spark()
+    spark.sparkContext.setLogLevel("ERROR")
+
+    data = [
+        ("EURUSD", 1.08500, 1.08502, "2025-01-01T12:00:05Z"),
+        ("EURUSD", 1.08510, 1.08512, "2025-01-01T12:00:30.123Z"),
+    ]
+    df = spark.createDataFrame(data, ["symbol", "bid", "ask", "timestamp"])
+    velas = transform(df).collect()
+
+    assert len(velas) == 1, f"Expected one candle, got {len(velas)}."
+    assert velas[0]["num_ticks"] == 2
+    print("PASS test_flexible_timestamps")
+    spark.stop()
+
+
 if __name__ == "__main__":
     print("Phase 2 unit tests")
     test_spark_session()
     test_vela_aggregation()
     test_multiple_windows()
+    test_flexible_timestamps()
     print("All Phase 2 tests passed.")

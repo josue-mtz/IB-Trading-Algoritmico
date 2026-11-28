@@ -6,3 +6,4 @@ logs/
 data/
 reports/
 checkpoints/
+.vscode/

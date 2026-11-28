@@ -34,11 +34,14 @@ def transform(ticks_df: DataFrame) -> DataFrame:
     """
     is_streaming = ticks_df.isStreaming
 
+    clean_ts = F.regexp_replace(F.col("timestamp"), "Z$", "")
     parsed = ticks_df.withColumn(
         "event_time",
-        F.to_timestamp(
-            F.regexp_replace(F.col("timestamp"), "Z$", ""),
-            "yyyy-MM-dd'T'HH:mm:ss.SSSSSS",
+        F.coalesce(
+            F.try_to_timestamp(clean_ts, F.lit("yyyy-MM-dd'T'HH:mm:ss.SSSSSS")),
+            F.try_to_timestamp(clean_ts, F.lit("yyyy-MM-dd'T'HH:mm:ss.SSS")),
+            F.try_to_timestamp(clean_ts, F.lit("yyyy-MM-dd'T'HH:mm:ss")),
+            F.try_to_timestamp(F.col("timestamp")),
         ),
     )
     parsed = parsed.withColumn("mid", (F.col("bid") + F.col("ask")) / 2)
