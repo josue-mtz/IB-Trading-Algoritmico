@@ -46,6 +46,7 @@ class SignalExecutor:
     def __init__(self):
         self.ib = IB()
         self.contract = Forex(SYMBOL, exchange="IDEALPRO", currency="USD")
+        self._contracts = {SYMBOL: self.contract}
         self.risk = RiskManager()
         self.log = get_logger("signal_executor")
         self.consumer = None
@@ -250,6 +251,16 @@ class SignalExecutor:
 
     # ---------- Ejecución de órdenes ----------
 
+    def _contract_for(self, symbol: str):
+        """Devuelve el contrato Forex de IB correspondiente al símbolo de la señal."""
+        sym = symbol.strip().upper().replace("/", "")
+        if sym not in self._contracts:
+            contract = Forex(sym, exchange="IDEALPRO", currency=sym[3:] or "USD")
+            if self.ib.isConnected():
+                self.ib.qualifyContracts(contract)
+            self._contracts[sym] = contract
+        return self._contracts[sym]
+
     def _place_bracket(self, signal: dict) -> None:
         qty = self.risk.trade_size
         action = signal["signal"]  # BUY o SELL.
@@ -297,7 +308,8 @@ class SignalExecutor:
             trade_id,
             {orders[0].orderId: "entry", orders[1].orderId: "tp", orders[2].orderId: "sl"},
         )
-        trades = [self.ib.placeOrder(self.contract, order) for order in orders]
+        contract = self._contract_for(signal["symbol"])
+        trades = [self.ib.placeOrder(contract, order) for order in orders]
 
         parent_trade = trades[0]
         # Da a IB un momento para informar el estado de las órdenes.

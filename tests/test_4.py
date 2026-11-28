@@ -135,6 +135,10 @@ class _FakeIB:
         self.client = self
         self.next_order_id = 100
         self.orders = []
+        self.contracts = []
+
+    def isConnected(self):
+        return False
 
     def getReqId(self):
         order_id = self.next_order_id
@@ -145,6 +149,7 @@ class _FakeIB:
         return []
 
     def placeOrder(self, contract, order):
+        self.contracts.append(contract)
         self.orders.append(order)
         return SimpleNamespace(
             order=order,
@@ -197,6 +202,18 @@ def test_execute_signal_builds_bracket_and_reports_failure():
     print("PASS test_execute_signal_builds_bracket_and_reports_failure")
 
 
+def test_execute_signal_uses_signal_symbol():
+    executor = SignalExecutor()
+    fake_ib = _FakeIB()
+    executor.ib = fake_ib
+    executor._log_event = Mock()
+
+    assert executor.execute_signal(_make_signal(symbol="GBPUSD", ref=1.2700)) is True
+    assert len(fake_ib.contracts) == 3
+    assert all(c.pair() == "GBPUSD" for c in fake_ib.contracts)
+    print("PASS test_execute_signal_uses_signal_symbol")
+
+
 if __name__ == "__main__":
     print("Phase 4 unit tests")
     test_can_execute_valid_buy()
@@ -209,4 +226,5 @@ if __name__ == "__main__":
     test_bracket_prices_buy()
     test_bracket_prices_sell()
     test_execute_signal_builds_bracket_and_reports_failure()
-    print("All 10 Phase 4 unit tests passed.")
+    test_execute_signal_uses_signal_symbol()
+    print("All 11 Phase 4 unit tests passed.")
