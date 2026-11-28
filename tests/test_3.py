@@ -2,7 +2,7 @@
 
 Estas pruebas no requieren Kafka ni Interactive Brokers.
 """
-from src.algorithms.indicadores import ema_series, ema_last, detect_cross
+from src.algorithms.indicators import ema_series, ema_last, detect_cross
 from src.algorithms.ema_cross import EMACross
 
 
